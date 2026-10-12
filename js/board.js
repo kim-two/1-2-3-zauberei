@@ -132,8 +132,8 @@ export function tausche(feld, [z1, s1], [z2, s2]) {
 }
 
 // Sucht einen Tausch, der zu einem Treffer führt. Liefert [a, b] oder null.
-// Zauberstab-Paare: Nach einem Zug reicht ein gleichfarbiger Nachbar (waagerecht oder senkrecht),
-// um einen Zauberstab auszulösen. Geprüft werden nur die beiden getauschten Zellen.
+// Zauberstab-Paare: Ein gleichfarbiger Nachbar (waagerecht oder senkrecht) reicht,
+// um einen Zauberstab auszulösen. Geprüft werden die übergebenen Zellen.
 export function findeStabPaare(feld, zellen) {
   const paare = [];
   const gesehen = new Set();
@@ -154,9 +154,14 @@ export function findeStabPaare(feld, zellen) {
   return paare;
 }
 
-// Alle Treffer eines Zugs: normale Dreierreihen plus Zauberstab-Paare an den getauschten Zellen.
-export function findeZugTreffer(feld, a, b) {
-  return [...findeTreffer(feld), ...findeStabPaare(feld, [a, b])];
+// Alle Treffer: normale Dreierreihen plus jeder Zauberstab, der neben einem gleichfarbigen Stein liegt.
+// Gilt nach einem Zug genauso wie bei Kettenreaktionen.
+export function findeAlleTreffer(feld) {
+  const staebe = [];
+  feld.forEach((zeile, z) => zeile.forEach((stein, s) => {
+    if (stein?.spezial === "stab") staebe.push([z, s]);
+  }));
+  return [...findeTreffer(feld), ...findeStabPaare(feld, staebe)];
 }
 
 export function findeMoeglichenZug(feld) {
@@ -167,7 +172,7 @@ export function findeMoeglichenZug(feld) {
         const z2 = z + dz, s2 = s + ds;
         if (z2 >= n || s2 >= n) continue;
         tausche(feld, [z, s], [z2, s2]);
-        const treffer = findeZugTreffer(feld, [z, s], [z2, s2]).length > 0;
+        const treffer = findeAlleTreffer(feld).length > 0;
         tausche(feld, [z, s], [z2, s2]);
         if (treffer) return [[z, s], [z2, s2]];
       }
@@ -207,7 +212,7 @@ export function mische(feld, zufall = Math.random) {
       [steine[i], steine[j]] = [steine[j], steine[i]];
     }
     for (let z = 0; z < n; z++) for (let s = 0; s < n; s++) feld[z][s] = steine[z * n + s];
-    if (findeTreffer(feld).length === 0 && findeMoeglichenZug(feld)) return true;
+    if (findeAlleTreffer(feld).length === 0 && findeMoeglichenZug(feld)) return true;
   }
   return false;
 }
