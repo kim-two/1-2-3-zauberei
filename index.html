@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>1-2-3 Zauberei</title>
   <meta name="description" content="Ein Match-3-Puzzlespiel für das Tablet.">
-  <meta name="theme-color" content="#2a1b4d">
+  <meta name="theme-color" content="#c9b6ff">
 
   <!-- Installierbar als App (Home-Bildschirm) -->
   <link rel="manifest" href="manifest.webmanifest">
@@ -20,16 +20,122 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <!-- Märchen-Landschaft im Hintergrund -->
+  <svg id="landschaft" viewBox="0 0 400 600" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+    <defs>
+      <linearGradient id="himmel" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#b9a4ff"/>
+        <stop offset=".45" stop-color="#ffc6e6"/>
+        <stop offset=".75" stop-color="#ffe9cf"/>
+      </linearGradient>
+      <linearGradient id="fluss" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#9fdcff"/>
+        <stop offset="1" stop-color="#4fb3f2"/>
+      </linearGradient>
+    </defs>
+    <rect width="400" height="600" fill="url(#himmel)"/>
+
+    <!-- Funkelnde Sterne am Himmel -->
+    <g fill="#fff" class="himmelsterne">
+      <circle cx="40" cy="40" r="2"/><circle cx="120" cy="22" r="1.5"/><circle cx="210" cy="50" r="2"/>
+      <circle cx="300" cy="30" r="1.5"/><circle cx="360" cy="70" r="2"/><circle cx="80" cy="95" r="1.5"/>
+    </g>
+
+    <!-- Wolken -->
+    <g fill="#fff" opacity=".8">
+      <ellipse cx="70" cy="140" rx="40" ry="12"/><ellipse cx="90" cy="132" rx="22" ry="12"/>
+      <ellipse cx="250" cy="150" rx="30" ry="9"/>
+    </g>
+
+    <!-- Wolkenschloss oben rechts -->
+    <g transform="translate(318 82) scale(.5)">
+      <rect x="0" y="40" width="70" height="60" fill="#fff4fb" stroke="#e7b8d8" stroke-width="2"/>
+      <rect x="-14" y="20" width="22" height="80" fill="#fff4fb" stroke="#e7b8d8" stroke-width="2"/>
+      <rect x="62" y="20" width="22" height="80" fill="#fff4fb" stroke="#e7b8d8" stroke-width="2"/>
+      <rect x="24" y="8" width="22" height="50" fill="#fff4fb" stroke="#e7b8d8" stroke-width="2"/>
+      <polygon points="-18,20 -3,-12 12,20" fill="#ff8cc6"/>
+      <polygon points="58,20 73,-12 88,20" fill="#ff8cc6"/>
+      <polygon points="20,8 35,-30 50,8" fill="#c58cff"/>
+      <path d="M35 -30 L35 -44 L48 -40 L35 -36" fill="#ffd94a" stroke="#d6a800" stroke-width="1"/>
+      <path d="M26 100 L26 80 Q35 68 44 80 L44 100 Z" fill="#c58cff"/>
+      <circle cx="-3" cy="40" r="4" fill="#ffd1ec"/><circle cx="73" cy="40" r="4" fill="#ffd1ec"/>
+      <circle cx="35" cy="28" r="4" fill="#ffd1ec"/>
+    </g>
+    <g fill="#fff">
+      <ellipse cx="336" cy="134" rx="40" ry="10"/><ellipse cx="320" cy="128" rx="18" ry="10"/><ellipse cx="352" cy="127" rx="16" ry="9"/>
+    </g>
+
+    <!-- Wiese -->
+    <path d="M0 330 Q120 280 240 330 T400 320 L400 600 L0 600 Z" fill="#8fd77f"/>
+    <path d="M0 430 Q140 390 260 430 T400 420 L400 600 L0 600 Z" fill="#6cc46a"/>
+
+    <!-- Fluss mit Brücke -->
+    <path d="M180 330 C150 420 260 450 200 530 C175 565 185 600 185 600 L250 600 C245 580 240 560 262 530 C320 450 220 420 232 330 Z" fill="url(#fluss)"/>
+    <path d="M210 565 Q205 575 214 585 M228 545 Q236 552 232 560" stroke="#fff" stroke-width="2" fill="none" opacity=".7" stroke-linecap="round"/>
+    <g transform="translate(172 516)">
+      <path d="M0 22 Q58 -10 116 22 L116 32 L0 32 Z" fill="#d9c2a6" stroke="#b39373" stroke-width="2"/>
+      <path d="M22 32 Q58 10 94 32 Z" fill="#4fb3f2"/>
+      <path d="M0 18 Q58 -14 116 18" fill="none" stroke="#b39373" stroke-width="3"/>
+    </g>
+
+    <!-- Bäume -->
+    <g>
+      <rect x="28" y="490" width="12" height="60" rx="3" fill="#9b6b43"/>
+      <circle cx="34" cy="478" r="30" fill="#4fb35a"/><circle cx="14" cy="494" r="20" fill="#4fb35a"/>
+      <circle cx="54" cy="492" r="22" fill="#45a651"/>
+      <circle cx="24" cy="470" r="5" fill="#ff8cc6"/><circle cx="48" cy="482" r="5" fill="#ff8cc6"/>
+      <rect x="360" y="500" width="12" height="56" rx="3" fill="#9b6b43"/>
+      <circle cx="366" cy="488" r="28" fill="#45a651"/><circle cx="388" cy="502" r="18" fill="#4fb35a"/>
+      <circle cx="356" cy="480" r="5" fill="#ffd94a"/>
+    </g>
+
+    <!-- Gras und Blumen vorne -->
+    <path d="M0 600 L0 540 Q100 515 200 545 T400 535 L400 600 Z" fill="#55b356"/>
+    <g fill="#fff"><circle cx="40" cy="560" r="4"/><circle cx="110" cy="575" r="4"/><circle cx="330" cy="565" r="4"/></g>
+    <g fill="#ffd94a"><circle cx="40" cy="560" r="1.6"/><circle cx="110" cy="575" r="1.6"/><circle cx="330" cy="565" r="1.6"/></g>
+
+    <!-- Lianen von oben -->
+    <g fill="none" stroke="#3f9a4c" stroke-width="3" stroke-linecap="round">
+      <path d="M0 0 Q20 40 8 80 Q-2 120 18 160"/>
+      <path d="M30 0 Q44 30 36 60"/>
+      <path d="M400 0 Q378 50 392 100 Q402 140 384 180"/>
+      <path d="M368 0 Q356 26 366 52"/>
+    </g>
+    <g fill="#5cc068">
+      <ellipse cx="14" cy="40" rx="7" ry="4" transform="rotate(-30 14 40)"/>
+      <ellipse cx="6" cy="100" rx="7" ry="4" transform="rotate(30 6 100)"/>
+      <ellipse cx="16" cy="150" rx="7" ry="4" transform="rotate(-20 16 150)"/>
+      <ellipse cx="40" cy="45" rx="6" ry="3.5" transform="rotate(25 40 45)"/>
+      <ellipse cx="386" cy="50" rx="7" ry="4" transform="rotate(30 386 50)"/>
+      <ellipse cx="394" cy="120" rx="7" ry="4" transform="rotate(-30 394 120)"/>
+      <ellipse cx="388" cy="170" rx="7" ry="4" transform="rotate(20 388 170)"/>
+      <ellipse cx="362" cy="40" rx="6" ry="3.5" transform="rotate(-25 362 40)"/>
+    </g>
+  </svg>
+
   <main id="app">
-    <header class="titel">
-      <h1>1-2-3<br><span>Zauberei</span></h1>
+    <header class="kopf">
+      <h1>1-2-3 <span>Zauberei</span></h1>
+      <div class="punkte-leiste">
+        <div class="anzeige">
+          <span class="beschriftung">Punkte</span>
+          <span id="punkte" class="wert">0</span>
+        </div>
+        <div class="anzeige">
+          <span class="beschriftung">Rekord</span>
+          <span id="rekord" class="wert">0</span>
+        </div>
+      </div>
     </header>
 
-    <!-- Platzhalter für das Spielfeld (8×8) – kommt im nächsten Schritt -->
-    <section id="spielfeld" aria-label="Spielfeld"></section>
+    <section id="spielfeld" aria-label="Spielfeld">
+      <div id="steine"></div>
+      <div id="effekte"></div>
+      <div id="lob" aria-live="polite"></div>
+    </section>
 
-    <footer class="info">
-      <p id="status">Grundgerüst steht. Das Spiel folgt.</p>
+    <footer class="fuss">
+      <button id="neues-spiel" type="button">Neues Spiel</button>
       <p class="version">Version <span id="version"></span></p>
     </footer>
   </main>
@@ -40,6 +146,6 @@
     <p>Bitte das iPad hochkant halten</p>
   </div>
 
-  <script src="js/main.js"></script>
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>

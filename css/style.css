@@ -1,10 +1,10 @@
 :root {
-  --hintergrund-oben: #2a1b4d;
-  --hintergrund-unten: #120a24;
-  --text: #f4ecff;
-  --akzent: #ffcf5c;
-  --feld: rgba(255, 255, 255, 0.06);
-  --feld-rand: rgba(255, 255, 255, 0.14);
+  --text: #5a2a82;
+  --text-hell: #8a5bb0;
+  --akzent: #ff5fa8;
+  --panel: rgba(255, 255, 255, 0.55);
+  --panel-rand: rgba(255, 255, 255, 0.9);
+  --schrift: ui-rounded, "SF Pro Rounded", "Nunito", "Arial Rounded MT Bold", system-ui, sans-serif;
 }
 
 * {
@@ -20,10 +20,9 @@ html, body {
 }
 
 body {
-  background: linear-gradient(180deg, var(--hintergrund-oben), var(--hintergrund-unten));
-  background-color: var(--hintergrund-unten);
+  background-color: #ffd6ec;
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--schrift);
   -webkit-user-select: none;     /* kein Text-Markieren bei langem Antippen */
   user-select: none;
   -webkit-touch-callout: none;
@@ -31,53 +30,355 @@ body {
   touch-action: none;            /* Gesten gehören dem Spiel, nicht dem Browser */
 }
 
+#landschaft {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+.himmelsterne circle {
+  animation: funkeln 3s ease-in-out infinite;
+}
+.himmelsterne circle:nth-child(2n) { animation-delay: 1.5s; }
+.himmelsterne circle:nth-child(3n) { animation-delay: .7s; }
+
+@keyframes funkeln {
+  0%, 100% { opacity: .3; }
+  50% { opacity: 1; }
+}
+
 #app {
+  position: relative;
+  z-index: 1;
   height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   /* Abstand zu Kamera-Aussparung und Home-Leiste */
   padding:
-    calc(env(safe-area-inset-top) + 24px)
+    calc(env(safe-area-inset-top) + 20px)
     calc(env(safe-area-inset-right) + 16px)
     calc(env(safe-area-inset-bottom) + 16px)
     calc(env(safe-area-inset-left) + 16px);
 }
 
-.titel h1 {
-  text-align: center;
-  font-size: clamp(2rem, 7vw, 4rem);
-  line-height: 1.05;
+/* ---------- Kopfbereich ---------- */
+
+.kopf {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.kopf h1 {
+  font-size: clamp(2rem, 6.5vw, 3.6rem);
+  font-weight: 800;
+  color: #fff;
   letter-spacing: 0.02em;
+  text-shadow: 0 3px 0 #b77fe0, 0 6px 16px rgba(120, 50, 160, 0.35);
 }
 
-.titel h1 span {
-  color: var(--akzent);
+.kopf h1 span {
+  color: #fff3a8;
 }
 
-/* Quadratisches Spielfeld, so groß wie möglich im Hochformat */
+.punkte-leiste {
+  display: flex;
+  gap: 14px;
+}
+
+.anzeige {
+  min-width: 9.5em;
+  padding: 8px 20px;
+  border-radius: 999px;
+  background: var(--panel);
+  border: 2px solid var(--panel-rand);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 4px 14px rgba(140, 70, 180, 0.18);
+}
+
+.beschriftung {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-hell);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.wert {
+  font-size: clamp(1.4rem, 3.6vw, 2rem);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.wert.huepft {
+  animation: huepfen 0.35s ease-out;
+}
+
+@keyframes huepfen {
+  40% { transform: scale(1.25); color: var(--akzent); }
+}
+
+/* ---------- Spielfeld ---------- */
+
 #spielfeld {
-  width: min(92vw, 62vh);
+  position: relative;
+  width: min(92vw, 64vh);
   aspect-ratio: 1 / 1;
-  background: var(--feld);
-  border: 2px solid var(--feld-rand);
-  border-radius: 20px;
+  padding: 1.6%;
+  border-radius: 28px;
+  background: var(--panel);
+  border: 3px solid var(--panel-rand);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 30px rgba(140, 70, 180, 0.25);
 }
 
-.info {
-  text-align: center;
-  opacity: 0.8;
-  font-size: 0.95rem;
-  line-height: 1.6;
+#steine,
+#effekte {
+  position: absolute;
+  inset: 1.6%;
+  border-radius: 18px;
+}
+
+#steine {
+  overflow: hidden;              /* neue Steine fallen von oben "aus dem Nichts" herein */
+  /* Schachbrett-Muster für die Felder */
+  background-image: conic-gradient(
+    rgba(255, 255, 255, 0.55) 25%, rgba(255, 255, 255, 0.2) 0 50%,
+    rgba(255, 255, 255, 0.55) 0 75%, rgba(255, 255, 255, 0.2) 0
+  );
+  background-size: 25% 25%;
+}
+
+#effekte {
+  pointer-events: none;
+  z-index: 2;
+}
+
+.stein {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 12.5%;
+  height: 12.5%;
+  transform: translate(calc(var(--s) * 100%), calc(var(--z) * 100%));
+  transition: transform 0.2s ease-in-out;
+}
+
+.stein.faellt {
+  transition: transform var(--dauer, 0.35s) cubic-bezier(0.45, 0.05, 0.55, 1.25);
+}
+
+.stein.ohne-animation {
+  transition: none;
+}
+
+.stein .bild {
+  width: 100%;
+  height: 100%;
+  padding: 9%;
+  filter: drop-shadow(0 3px 2px rgba(90, 40, 120, 0.3));
+}
+
+.stein .bild svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Ausgewählter Stein: größer, mit Leuchtring */
+.stein.gewaehlt::before {
+  content: "";
+  position: absolute;
+  inset: 4%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.95) 30%, rgba(255, 255, 255, 0) 70%);
+  animation: leuchten 1s ease-in-out infinite;
+}
+
+.stein.gewaehlt .bild {
+  transform: scale(1.15);
+  transition: transform 0.15s;
+}
+
+@keyframes leuchten {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+/* Ungültiger Tausch */
+.stein.wackeln .bild {
+  animation: wackeln 0.35s ease-in-out;
+}
+
+@keyframes wackeln {
+  20% { transform: translateX(-8%) rotate(-6deg); }
+  40% { transform: translateX(8%) rotate(6deg); }
+  60% { transform: translateX(-5%) rotate(-3deg); }
+  80% { transform: translateX(5%) rotate(3deg); }
+}
+
+/* Tipp nach einer Weile ohne Zug */
+.stein.tipp .bild {
+  animation: tipp 1.1s ease-in-out infinite;
+}
+
+@keyframes tipp {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.18) rotate(-5deg); }
+}
+
+/* Auflösen bei einem Treffer */
+.stein.verschwindet .bild {
+  animation: verschwinden 0.42s ease-in forwards;
+}
+
+@keyframes verschwinden {
+  0%   { transform: scale(1); filter: brightness(1) drop-shadow(0 0 0 #fff); }
+  35%  { transform: scale(1.3) rotate(8deg); filter: brightness(1.6) drop-shadow(0 0 12px #fff); opacity: 1; }
+  100% { transform: scale(0) rotate(-30deg); filter: brightness(2) drop-shadow(0 0 16px #fff); opacity: 0; }
+}
+
+/* Neu mischen */
+.stein.mischen .bild {
+  animation: mischen 0.6s ease-in-out;
+}
+
+@keyframes mischen {
+  50% { transform: scale(0) rotate(180deg); }
+}
+
+/* ---------- Effekte ---------- */
+
+.funke {
+  position: absolute;
+  width: 5%;
+  height: 5%;
+  margin: -2.5% 0 0 -2.5%;
+  animation: funke var(--dauer, 0.7s) ease-out forwards;
+}
+
+.funke svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  filter: drop-shadow(0 0 3px #fff);
+}
+
+@keyframes funke {
+  0%   { transform: translate(0, 0) scale(0.4) rotate(0); opacity: 1; }
+  70%  { opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(var(--gross, 1)) rotate(var(--dreh)); opacity: 0; }
+}
+
+.ring {
+  position: absolute;
+  width: 12.5%;
+  height: 12.5%;
+  margin: -6.25% 0 0 -6.25%;
+  border-radius: 50%;
+  border: 4px solid var(--farbe);
+  box-shadow: 0 0 12px var(--farbe), inset 0 0 12px var(--farbe);
+  animation: ring 0.5s ease-out forwards;
+}
+
+@keyframes ring {
+  0%   { transform: scale(0.3); opacity: 1; }
+  100% { transform: scale(var(--gross, 2.2)); opacity: 0; }
+}
+
+.punkte-popup {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-size: clamp(1.4rem, 4vw, 2.2rem);
+  font-weight: 800;
+  color: var(--farbe);
+  text-shadow:
+    -2px -2px 0 #fff, 2px -2px 0 #fff, -2px 2px 0 #fff, 2px 2px 0 #fff,
+    0 3px 0 #fff, 0 6px 10px rgba(90, 40, 120, 0.45);
+  animation: popup 1.2s ease-out forwards;
+  white-space: nowrap;
+}
+
+@keyframes popup {
+  0%   { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+  15%  { transform: translate(-50%, -70%) scale(1.2); opacity: 1; }
+  65%  { transform: translate(-50%, -120%) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -180%) scale(1); opacity: 0; }
+}
+
+#lob {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 3;
+}
+
+#lob .text {
+  font-size: clamp(2.6rem, 9vw, 5rem);
+  font-weight: 900;
+  color: #fff;
+  -webkit-text-stroke: 2px #e0479a;
+  text-shadow: 0 4px 0 #b77fe0, 0 8px 24px rgba(120, 50, 160, 0.5);
+  animation: lob 1.1s ease-out forwards;
+}
+
+@keyframes lob {
+  0%   { transform: scale(0.3) rotate(-8deg); opacity: 0; }
+  25%  { transform: scale(1.15) rotate(3deg); opacity: 1; }
+  40%  { transform: scale(1) rotate(0); }
+  80%  { opacity: 1; }
+  100% { transform: scale(1.1) translateY(-20%); opacity: 0; }
+}
+
+/* ---------- Fußbereich ---------- */
+
+.fuss {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+#neues-spiel {
+  font-family: var(--schrift);
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #fff;
+  padding: 14px 34px;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ff8cc6, #e0479a);
+  box-shadow: 0 5px 0 #b02f74, 0 8px 18px rgba(176, 47, 116, 0.35);
+  cursor: pointer;
+}
+
+#neues-spiel:active {
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 #b02f74, 0 4px 10px rgba(176, 47, 116, 0.35);
 }
 
 .version {
   font-size: 0.75rem;
-  opacity: 0.6;
+  color: #fff;
+  opacity: 0.85;
 }
 
-/* Querformat: Hinweis einblenden */
+/* ---------- Querformat: Hinweis einblenden ---------- */
+
 #drehen-hinweis {
   display: none;
 }
@@ -89,16 +390,24 @@ body {
   #drehen-hinweis {
     position: fixed;
     inset: 0;
+    z-index: 5;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 16px;
-    font-size: 1.3rem;
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #fff;
+    text-shadow: 0 2px 0 #b77fe0;
     text-align: center;
   }
   .drehen-icon {
     font-size: 4rem;
     transform: rotate(90deg);
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .himmelsterne circle { animation: none; }
 }

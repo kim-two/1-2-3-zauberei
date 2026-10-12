@@ -10,13 +10,24 @@ Ein Match-3-Puzzlespiel für den Browser auf Tablets, bereitgestellt über GitHu
 - **Technik:** reines HTML, CSS und JavaScript, kein Build-Schritt
 - **Kosten:** keine (öffentliches Repo + GitHub Pages)
 
+## Spielregeln (Endlos-Modus)
+
+- 8×8 Felder mit sechs Steinen: Kristall, Stern, Blatt, Tropfen, Blume, Einhorn-Horn
+- Zwei benachbarte Steine tauschen – per Wischen oder durch Antippen nacheinander
+- Drei oder mehr gleiche in einer Reihe lösen sich mit Funkel-Effekt auf
+- 10 Punkte pro Stein, Bonus für Vierer (+20) und Fünfer (+50), Kettenreaktionen zählen mehrfach
+- Nach 6 Sekunden ohne Zug zeigt das Spiel einen Tipp; gibt es keinen Zug mehr, wird neu gemischt
+- Der Rekord wird auf dem Gerät gespeichert
+
 ## Aufbau
 
 | Datei / Ordner          | Zweck                                                        |
 |-------------------------|--------------------------------------------------------------|
 | `index.html`            | Startseite des Spiels                                        |
 | `css/style.css`         | Aussehen und Layout                                          |
-| `js/main.js`            | Spiel-Logik (Einstiegspunkt)                                 |
+| `js/main.js`            | Darstellung, Touch-Steuerung und Effekte (Einstiegspunkt)    |
+| `js/board.js`           | Spielregeln: Feld, Treffer, Nachfallen, mögliche Züge        |
+| `js/steine.js`          | Die sechs Spielsteine als SVG-Zeichnungen                    |
 | `sw.js`                 | Service Worker – speichert das Spiel für den Offline-Betrieb |
 | `manifest.webmanifest`  | App-Name, Icon und Darstellung bei Installation              |
 | `icons/`                | App-Icons                                                    |
