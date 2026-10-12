@@ -59,6 +59,68 @@ export function findeTreffer(feld) {
   return gruppen;
 }
 
+// Fasst Treffer-Gruppen gleicher Art, die sich überschneiden (L- und T-Formen), zusammen.
+export function bildeCluster(gruppen) {
+  const cluster = [];
+  for (const g of gruppen) {
+    const schluessel = new Set(g.zellen.map((z) => z.join(",")));
+    const passende = cluster.filter(
+      (c) => c.art === g.art && [...schluessel].some((k) => c.zellen.has(k))
+    );
+    const neu = { art: g.art, zellen: schluessel };
+    for (const c of passende) {
+      c.zellen.forEach((k) => neu.zellen.add(k));
+      cluster.splice(cluster.indexOf(c), 1);
+    }
+    cluster.push(neu);
+  }
+  return cluster.map((c) => ({
+    art: c.art,
+    zellen: [...c.zellen].map((k) => k.split(",").map(Number)),
+  }));
+}
+
+// Berechnet, was bei den aktuellen Treffern passiert:
+// - welche Zellen verschwinden (inkl. ganzer Reihen durch ausgelöste Zauberstäbe)
+// - wo neue Zauberstäbe entstehen (bei Clustern ab 4 Steinen)
+// bevorzugt: Zellen, an denen ein neuer Stab bevorzugt entstehen soll (die getauschten Steine).
+export function berechneAufloesung(feld, gruppen, bevorzugt = []) {
+  const key = ([z, s]) => `${z},${s}`;
+  const entfernen = new Map();
+  for (const g of gruppen) for (const z of g.zellen) entfernen.set(key(z), z);
+
+  // Zauberstäbe auslösen – auch Stäbe, die von einem anderen Stab getroffen werden
+  const ausgeloest = [];
+  const warteschlange = [...entfernen.values()];
+  const schonAusgeloest = new Set();
+  while (warteschlange.length) {
+    const [z, s] = warteschlange.shift();
+    const stein = feld[z][s];
+    if (stein?.spezial !== "stab" || schonAusgeloest.has(key([z, s]))) continue;
+    schonAusgeloest.add(key([z, s]));
+    ausgeloest.push([z, s]);
+    for (let k = 0; k < feld[z].length; k++) {
+      if (!entfernen.has(key([z, k]))) {
+        entfernen.set(key([z, k]), [z, k]);
+        warteschlange.push([z, k]);
+      }
+    }
+  }
+
+  // Neue Zauberstäbe
+  const neueStaebe = [];
+  for (const c of bildeCluster(gruppen)) {
+    if (c.zellen.length < 4) continue;
+    const imCluster = (zelle) => c.zellen.some((x) => x[0] === zelle[0] && x[1] === zelle[1]);
+    const sortiert = [...c.zellen].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    const ziel = bevorzugt.find(imCluster) || sortiert[Math.floor(sortiert.length / 2)];
+    neueStaebe.push({ zelle: ziel, art: c.art });
+    entfernen.delete(key(ziel));
+  }
+
+  return { entfernen: [...entfernen.values()], neueStaebe, ausgeloest };
+}
+
 export function sindNachbarn([z1, s1], [z2, s2]) {
   return Math.abs(z1 - z2) + Math.abs(s1 - s2) === 1;
 }

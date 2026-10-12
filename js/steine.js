@@ -85,6 +85,22 @@ export const SVG_DEFS = `
       <path d="M45 22 L40 44" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity=".7"/>
     </symbol>
 
+    <!-- Zauberstab (liegt über dem Stein) -->
+    <linearGradient id="v-stab" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7b3fe4"/>
+      <stop offset="1" stop-color="#4a1f9e"/>
+    </linearGradient>
+    <symbol id="zauberstab" viewBox="0 0 100 100">
+      <g transform="rotate(40 50 50)">
+        <rect x="44" y="34" width="12" height="62" rx="6" fill="url(#v-stab)" stroke="#fff" stroke-width="4"/>
+        <rect x="44" y="52" width="12" height="7" fill="#ffd94a"/>
+        <rect x="44" y="70" width="12" height="7" fill="#ffd94a"/>
+      </g>
+      <polygon points="66,4 72,20 89,21 76,32 80,49 66,40 52,49 56,32 43,21 60,20"
+        transform="translate(-4 4)" fill="#ffe14d" stroke="#fff" stroke-width="5" stroke-linejoin="round" paint-order="stroke"/>
+      <circle cx="56" cy="18" r="3" fill="#fff"/>
+    </symbol>
+
     <!-- Funkel-Stern für Effekte -->
     <symbol id="funkel" viewBox="0 0 20 20">
       <path d="M10 0 Q11.5 8.5 20 10 Q11.5 11.5 10 20 Q8.5 11.5 0 10 Q8.5 8.5 10 0 Z"/>

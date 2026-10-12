@@ -1,10 +1,10 @@
 // Einstiegspunkt des Spiels: Darstellung, Touch-Steuerung und Effekte.
 // Die Versionsnummer muss mit CACHE_VERSION in sw.js übereinstimmen.
-const VERSION = "0.2.0";
+const VERSION = "0.3.0";
 
 import {
   erzeugeFeld, findeTreffer, findeMoeglichenZug, sindNachbarn,
-  tausche, entferneUndFuelle, mische,
+  tausche, entferneUndFuelle, mische, berechneAufloesung,
 } from "./board.js";
 import { STEINE, SVG_DEFS } from "./steine.js";
 
@@ -14,6 +14,7 @@ const ARTEN = STEINE.length;
 const TIPP_NACH_MS = 6000;           // nach so langer Pause zeigt das Spiel einen möglichen Zug
 const PUNKTE_PRO_STEIN = 10;
 const BONUS = { 4: 20, 5: 50 };      // Extrapunkte für Vierer- und Fünferreihen
+const STAB_BONUS = 50;               // Extrapunkte, wenn ein Zauberstab ausgelöst wird
 const LOB_KETTE = ["Toll!", "Super!", "Fantastisch!", "Zauberhaft!"]; // 2., 3., 4., 5.+ Kettenreaktion
 const REKORD_SCHLUESSEL = "zauberei-rekord";
 
@@ -92,7 +93,18 @@ function erzeugeElement(stein) {
     `<use href="#stein-${stein.art}"/></svg></div>`;
   steineEbene.append(el);
   elemente.set(stein.id, el);
+  if (stein.spezial === "stab") zeigeAlsStab(el, stein);
   return el;
+}
+
+// Legt den Zauberstab über den Stein. Die Farbe des Steins bleibt erhalten.
+function zeigeAlsStab(el, stein) {
+  if (el.classList.contains("stab")) return;
+  el.classList.add("stab");
+  el.style.setProperty("--farbe", STEINE[stein.art].farbe);
+  el.insertAdjacentHTML("afterbegin", '<div class="aura"></div>');
+  el.insertAdjacentHTML("beforeend",
+    '<svg class="stab-symbol" viewBox="0 0 100 100" aria-label="Zauberstab"><use href="#zauberstab"/></svg>');
 }
 
 function elementBei([z, s]) {
@@ -168,6 +180,18 @@ function funkenregen([z, s], farbe, anzahl) {
   }
 }
 
+// Lichtstrahl über die ganze Reihe, ausgehend vom Zauberstab
+function strahl([z, s], farbe) {
+  const el = document.createElement("div");
+  el.className = "strahl";
+  el.style.top = `${(z / GROESSE) * 100}%`;
+  el.style.transformOrigin = `${((s + 0.5) / GROESSE) * 100}% 50%`;
+  el.style.setProperty("--farbe", farbe);
+  effektEbene.append(el);
+  el.addEventListener("animationend", () => el.remove(), { once: true });
+  setTimeout(() => el.remove(), 2000);
+}
+
 function zeigeLob(text) {
   lobEbene.innerHTML = "";
   const el = document.createElement("div");
@@ -178,46 +202,78 @@ function zeigeLob(text) {
 }
 
 // ---------- Spielablauf ----------
-async function loeseTrefferAuf() {
+// bevorzugt: Zellen des Tauschs – dort entsteht ein neuer Zauberstab am liebsten.
+async function loeseTrefferAuf(bevorzugt = []) {
   let kette = 1;
   for (;;) {
     const gruppen = findeTreffer(feld);
     if (!gruppen.length) break;
 
-    // Zellen sammeln (eine Zelle kann in zwei Gruppen liegen, z. B. bei L-Formen)
-    const zellenMap = new Map();
+    const { entfernen, neueStaebe, ausgeloest } =
+      berechneAufloesung(feld, gruppen, kette === 1 ? bevorzugt : []);
+
+    // Punkte: jede Gruppe zeigt ihre Punkte; Steine aus Stab-Reihen zählen zusätzlich
     let gewinn = 0;
     let laengste = 0;
+    const inGruppe = new Set();
     for (const g of gruppen) {
       const n = g.zellen.length;
       laengste = Math.max(laengste, n);
       const gruppenPunkte = (n * PUNKTE_PRO_STEIN + (BONUS[Math.min(n, 5)] || 0)) * kette;
       gewinn += gruppenPunkte;
-      const farbe = STEINE[g.art].farbe;
+      g.zellen.forEach((z) => inGruppe.add(z.join(",")));
       const { links, oben } = mitte(g.zellen);
-      effekt("punkte-popup", links, oben, { "--farbe": farbe }, `+${gruppenPunkte}`);
-      for (const zelle of g.zellen) zellenMap.set(zelle.join(","), { zelle, farbe, gross: n >= 4 });
+      effekt("punkte-popup", links, oben, { "--farbe": STEINE[g.art].farbe }, `+${gruppenPunkte}`);
+    }
+    const gezaehlteReihen = new Set();
+    for (const zelle of ausgeloest) {
+      const farbe = STEINE[feld[zelle[0]][zelle[1]].art].farbe;
+      strahl(zelle, farbe);
+      if (gezaehlteReihen.has(zelle[0])) continue;   // zwei Stäbe in einer Reihe: Reihe nur einmal zählen
+      gezaehlteReihen.add(zelle[0]);
+      const extra = (entfernen.filter(([z, s]) => z === zelle[0] && !inGruppe.has(`${z},${s}`)).length
+        * PUNKTE_PRO_STEIN + STAB_BONUS) * kette;
+      gewinn += extra;
+      const { links, oben } = mitte([[zelle[0], 3.5]]);
+      effekt("punkte-popup", links, oben - 6, { "--farbe": farbe }, `+${extra}`);
     }
 
-    for (const { zelle, farbe, gross } of zellenMap.values()) {
+    // Auflösen mit Effekten
+    for (const zelle of entfernen) {
+      const farbe = STEINE[feld[zelle[0]][zelle[1]].art].farbe;
+      const gross = laengste >= 4;
       const { links, oben } = mitte([zelle]);
       effekt("ring", links, oben, { "--farbe": farbe, "--gross": gross ? "3" : "2" });
-      funkenregen(zelle, farbe, gross ? 10 : 7);
+      funkenregen(zelle, farbe, inGruppe.has(zelle.join(",")) ? (gross ? 10 : 7) : 5);
       elementBei(zelle).classList.add("verschwindet");
     }
 
-    if (kette >= 2) zeigeLob(LOB_KETTE[Math.min(kette - 2, LOB_KETTE.length - 1)]);
-    else if (laengste >= 5) zeigeLob("Wunderbar!");
-    else if (laengste === 4) zeigeLob("Klasse!");
+    // Neue Zauberstäbe entstehen
+    for (const { zelle, art } of neueStaebe) {
+      const stein = feld[zelle[0]][zelle[1]];
+      stein.art = art;
+      stein.spezial = "stab";
+      const el = elementBei(zelle);
+      el.classList.remove("verschwindet");
+      zeigeAlsStab(el, stein);
+      el.classList.add("wird-stab");
+      setTimeout(() => el.classList.remove("wird-stab"), 700);
+      const { links, oben } = mitte([zelle]);
+      effekt("ring", links, oben, { "--farbe": "#fff", "--gross": "3.5" });
+      funkenregen(zelle, "#ffe14d", 12);
+    }
 
-    await warte(400);
-    const zellen = [...zellenMap.values()].map((x) => x.zelle);
-    for (const zelle of zellen) {
+    if (ausgeloest.length) zeigeLob("Zauberei!");
+    else if (neueStaebe.length) zeigeLob("Zauberstab!");
+    else if (kette >= 2) zeigeLob(LOB_KETTE[Math.min(kette - 2, LOB_KETTE.length - 1)]);
+
+    await warte(ausgeloest.length ? 480 : 400);
+    for (const zelle of entfernen) {
       const stein = feld[zelle[0]][zelle[1]];
       elemente.get(stein.id).remove();
       elemente.delete(stein.id);
     }
-    entferneUndFuelle(feld, zellen, ARTEN);
+    entferneUndFuelle(feld, entfernen, ARTEN);
     addierePunkte(gewinn);
     await lasseFallen();
     kette++;
@@ -285,7 +341,7 @@ async function versucheTausch(a, b) {
     elA.classList.remove("wackeln");
     elB.classList.remove("wackeln");
   } else {
-    await loeseTrefferAuf();
+    await loeseTrefferAuf([b, a]);   // b: dorthin wurde der Stein gezogen
   }
 
   beschaeftigt = false;
