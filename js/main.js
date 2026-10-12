@@ -1,22 +1,24 @@
 // Einstiegspunkt des Spiels: Darstellung, Touch-Steuerung und Effekte.
 // Die Versionsnummer muss mit CACHE_VERSION in sw.js übereinstimmen.
-const VERSION = "0.4.2";
+const VERSION = "0.5.0";
 
 import {
-  erzeugeFeld, findeMoeglichenZug, sindNachbarn,
-  tausche, entferneUndFuelle, mische, berechneAufloesung, findeAlleTreffer,
+  erzeugeFeld, findeMoeglichenZug, sindNachbarn, tausche, mische,
+  berechneAufloesung, findeAlleTreffer, berechnePunkte, wendeAufloesungAn,
 } from "./board.js";
 import { STEINE, SVG_DEFS } from "./steine.js";
+import {
+  AUFGABEN, zielText, zielStand, istGeschafft, leererStand, addiereStand, erzeugeAufgabenFeld,
+} from "./aufgaben.js";
+import { EINHORN_SVG, FEE_SVG } from "./figuren.js";
 
 // ---------- Einstellungen ----------
 const GROESSE = 8;
 const ARTEN = STEINE.length;
 const TIPP_NACH_MS = 6000;           // nach so langer Pause zeigt das Spiel einen möglichen Zug
-const PUNKTE_PRO_STEIN = 10;
-const BONUS = { 4: 20, 5: 50 };      // Extrapunkte für Vierer- und Fünferreihen
-const STAB_BONUS = 50;               // Extrapunkte, wenn ein Zauberstab ausgelöst wird
 const LOB_KETTE = ["Toll!", "Super!", "Fantastisch!", "Zauberhaft!"]; // 2., 3., 4., 5.+ Kettenreaktion
 const REKORD_SCHLUESSEL = "zauberei-rekord";
+const FORTSCHRITT_SCHLUESSEL = "zauberei-aufgaben";   // Liste der geschafften Aufgaben
 
 // ---------- Elemente ----------
 document.body.insertAdjacentHTML("afterbegin", SVG_DEFS);
@@ -25,6 +27,9 @@ const effektEbene = document.getElementById("effekte");
 const lobEbene = document.getElementById("lob");
 const punkteAnzeige = document.getElementById("punkte");
 const rekordAnzeige = document.getElementById("rekord");
+const zuegeAnzeige = document.getElementById("zuege");
+const zieleAnzeige = document.getElementById("ziele");
+const neuesSpielKnopf = document.getElementById("neues-spiel");
 document.getElementById("version").textContent = VERSION;
 
 // ---------- Zustand ----------
@@ -35,6 +40,13 @@ let beschaeftigt = false;            // während Animationen keine Eingaben
 let gewaehlt = null;                 // [zeile, spalte] des angetippten Steins
 let tippTimer = null;
 const elemente = new Map();          // Stein-ID -> DOM-Element
+
+let modus = "endlos";                // "endlos" oder "aufgabe"
+let spielAktiv = false;              // false, solange Menü oder Dialog offen sind
+let aufgabeNr = 0;                   // Index in AUFGABEN
+let aufgabe = null;
+let stand = leererStand();           // Fortschritt der laufenden Aufgabe
+let zuegeUebrig = 0;
 
 const warte = (ms) => new Promise((r) => setTimeout(r, ms));
 const zufall = (min, max) => min + Math.random() * (max - min);
@@ -69,6 +81,7 @@ function zeigePunkte() {
 
 function addierePunkte(wert) {
   punkte += wert;
+  if (modus !== "endlos") return;
   huepfe(punkteAnzeige);
   if (punkte > rekord) {
     rekord = punkte;
@@ -94,7 +107,26 @@ function erzeugeElement(stein) {
   steineEbene.append(el);
   elemente.set(stein.id, el);
   if (stein.spezial === "stab") zeigeAlsStab(el, stein);
+  zeigeSchutz(el, stein);
   return el;
+}
+
+// Ranken (Schutz 1–2) und Steinhülle (Schutz 3) über dem Stein
+function zeigeSchutz(el, stein) {
+  let ebene = el.querySelector(".schutz");
+  if (!(stein.schutz > 0)) {
+    ebene?.remove();
+    return;
+  }
+  if (!ebene) {
+    ebene = document.createElement("div");
+    ebene.className = "schutz";
+    el.append(ebene);
+  }
+  const teile = [];
+  if (stein.schutz >= 3) teile.push("huelle");
+  teile.push(stein.schutz >= 2 ? "ranken-2" : "ranken-1");
+  ebene.innerHTML = teile.map((t) => `<svg viewBox="0 0 100 100"><use href="#${t}"/></svg>`).join("");
 }
 
 // Legt den Zauberstab über den Stein. Die Farbe des Steins bleibt erhalten.
@@ -109,6 +141,21 @@ function zeigeAlsStab(el, stein) {
 
 function elementBei([z, s]) {
   return elemente.get(feld[z][s].id);
+}
+
+// Im Aufgaben-Modus leuchten alle Steine, die für ein noch offenes Ziel zählen.
+function aktualisiereLeuchten() {
+  const offen = (modus === "aufgabe" && aufgabe)
+    ? aufgabe.ziele.filter((z) => zielStand(z, stand) < z.anzahl) : [];
+  const arten = new Set(offen.filter((z) => z.typ === "sammeln").map((z) => z.art));
+  const gefangene = offen.some((z) => z.typ === "befreien");
+  for (const zeile of feld) {
+    for (const stein of zeile) {
+      const el = elemente.get(stein.id);
+      if (!el) continue;
+      el.classList.toggle("ziel-leuchten", arten.has(stein.art) || (gefangene && stein.schutz > 0));
+    }
+  }
 }
 
 // Lässt alle Steine an ihren Platz fallen; neue Steine kommen von oben.
@@ -205,43 +252,32 @@ function zeigeLob(text) {
 // bevorzugt: Zellen des Tauschs – dort entsteht ein neuer Zauberstab am liebsten.
 // Zauberstab-Paare (Stab + gleichfarbiger Nachbar) zählen in jedem Schritt, auch bei Kettenreaktionen.
 async function loeseTrefferAuf(bevorzugt = []) {
-  let kette = 1;
-  for (;;) {
+  for (let kette = 1; ; kette++) {
     const gruppen = findeAlleTreffer(feld);
     if (!gruppen.length) break;
 
-    const { entfernen, neueStaebe, ausgeloest } =
-      berechneAufloesung(feld, gruppen, kette === 1 ? bevorzugt : []);
+    const aufloesung = berechneAufloesung(feld, gruppen, kette === 1 ? bevorzugt : []);
+    const { entfernen, geschwaecht, neueStaebe, ausgeloest } = aufloesung;
+    const wertung = berechnePunkte(gruppen, aufloesung, kette);
+    const farbeBei = ([z, s]) => STEINE[feld[z][s].art].farbe;
 
-    // Punkte: jede Gruppe zeigt ihre Punkte; Steine aus Stab-Reihen zählen zusätzlich
-    let gewinn = 0;
-    let laengste = 0;
-    const inGruppe = new Set();
-    for (const g of gruppen) {
-      const n = g.zellen.length;
-      laengste = Math.max(laengste, n);
-      const gruppenPunkte = (n * PUNKTE_PRO_STEIN + (BONUS[Math.min(n, 5)] || 0)) * kette;
-      gewinn += gruppenPunkte;
-      g.zellen.forEach((z) => inGruppe.add(z.join(",")));
+    // Punkte-Popups für Gruppen und Stab-Reihen
+    const laengste = Math.max(...gruppen.map((g) => g.zellen.length));
+    const inGruppe = new Set(gruppen.flatMap((g) => g.zellen.map((z) => z.join(","))));
+    gruppen.forEach((g, i) => {
       const { links, oben } = mitte(g.zellen);
-      effekt("punkte-popup", links, oben, { "--farbe": STEINE[g.art].farbe }, `+${gruppenPunkte}`);
-    }
-    const gezaehlteReihen = new Set();
-    for (const zelle of ausgeloest) {
-      const farbe = STEINE[feld[zelle[0]][zelle[1]].art].farbe;
-      strahl(zelle, farbe);
-      if (gezaehlteReihen.has(zelle[0])) continue;   // zwei Stäbe in einer Reihe: Reihe nur einmal zählen
-      gezaehlteReihen.add(zelle[0]);
-      const extra = (entfernen.filter(([z, s]) => z === zelle[0] && !inGruppe.has(`${z},${s}`)).length
-        * PUNKTE_PRO_STEIN + STAB_BONUS) * kette;
-      gewinn += extra;
-      const { links, oben } = mitte([[zelle[0], 3.5]]);
-      effekt("punkte-popup", links, oben - 6, { "--farbe": farbe }, `+${extra}`);
+      effekt("punkte-popup", links, oben, { "--farbe": STEINE[g.art].farbe }, `+${wertung.proGruppe[i]}`);
+    });
+    for (const zelle of ausgeloest) strahl(zelle, farbeBei(zelle));
+    for (const { zeile, punkte: p } of wertung.proReihe) {
+      const stab = ausgeloest.find(([z]) => z === zeile);
+      const { links, oben } = mitte([[zeile, 3.5]]);
+      effekt("punkte-popup", links, oben - 6, { "--farbe": farbeBei(stab) }, `+${p}`);
     }
 
     // Auflösen mit Effekten
     for (const zelle of entfernen) {
-      const farbe = STEINE[feld[zelle[0]][zelle[1]].art].farbe;
+      const farbe = farbeBei(zelle);
       const gross = laengste >= 4;
       const { links, oben } = mitte([zelle]);
       effekt("ring", links, oben, { "--farbe": farbe, "--gross": gross ? "3" : "2" });
@@ -249,14 +285,20 @@ async function loeseTrefferAuf(bevorzugt = []) {
       elementBei(zelle).classList.add("verschwindet");
     }
 
+    // Ranken und Steinhüllen knacken
+    const geknackt = geschwaecht.map((zelle) => {
+      const stein = feld[zelle[0]][zelle[1]];
+      const el = elemente.get(stein.id);
+      el.querySelector(".schutz")?.classList.add("knackt");
+      funkenregen(zelle, stein.schutz >= 3 ? "#a99bbf" : "#4cc96b", 8);
+      return { stein, el, zelle };
+    });
+
     // Neue Zauberstäbe entstehen
     for (const { zelle, art } of neueStaebe) {
-      const stein = feld[zelle[0]][zelle[1]];
-      stein.art = art;
-      stein.spezial = "stab";
       const el = elementBei(zelle);
       el.classList.remove("verschwindet");
-      zeigeAlsStab(el, stein);
+      zeigeAlsStab(el, { art });
       el.classList.add("wird-stab");
       setTimeout(() => el.classList.remove("wird-stab"), 700);
       const { links, oben } = mitte([zelle]);
@@ -269,15 +311,27 @@ async function loeseTrefferAuf(bevorzugt = []) {
     else if (kette >= 2) zeigeLob(LOB_KETTE[Math.min(kette - 2, LOB_KETTE.length - 1)]);
 
     await warte(ausgeloest.length ? 480 : 400);
-    for (const zelle of entfernen) {
-      const stein = feld[zelle[0]][zelle[1]];
-      elemente.get(stein.id).remove();
-      elemente.delete(stein.id);
+    const entfernteIds = entfernen.map(([z, s]) => feld[z][s].id);
+    const statistik = wendeAufloesungAn(feld, aufloesung, ARTEN);
+    for (const id of entfernteIds) {
+      elemente.get(id).remove();
+      elemente.delete(id);
     }
-    entferneUndFuelle(feld, entfernen, ARTEN);
-    addierePunkte(gewinn);
+    for (const { stein, el, zelle } of geknackt) {
+      zeigeSchutz(el, stein);
+      if (!(stein.schutz > 0) && modus === "aufgabe") {
+        const { links, oben } = mitte([zelle]);
+        effekt("ring", links, oben, { "--farbe": "#7fdc89", "--gross": "3" });
+      }
+    }
+    if (statistik.befreit && modus === "aufgabe") zeigeLob("Befreit!");
+    addierePunkte(wertung.gesamt);
+    if (modus === "aufgabe") {
+      addiereStand(stand, statistik, wertung.gesamt);
+      zeigeAufgabenStand(true);
+    }
     await lasseFallen();
-    kette++;
+    aktualisiereLeuchten();
   }
 
   if (!findeMoeglichenZug(feld)) await mischeNeu();
@@ -305,6 +359,7 @@ async function mischeNeu() {
   }
   await warte(320);
   for (const el of elemente.values()) el.classList.remove("mischen");
+  aktualisiereLeuchten();
 }
 
 // Ersetzt alle Elemente passend zum aktuellen Feld (ohne Animation).
@@ -342,7 +397,12 @@ async function versucheTausch(a, b) {
     elA.classList.remove("wackeln");
     elB.classList.remove("wackeln");
   } else {
+    if (modus === "aufgabe") {
+      zuegeUebrig--;
+      zeigeAufgabenStand(false);
+    }
     await loeseTrefferAuf([b, a]);   // b: dorthin wurde der Stein gezogen
+    if (modus === "aufgabe" && pruefeAufgabenEnde()) return;
   }
 
   beschaeftigt = false;
@@ -363,9 +423,10 @@ function waehleAb() {
 
 function starteTipp() {
   clearTimeout(tippTimer);
+  if (!spielAktiv) return;
   tippTimer = setTimeout(() => {
     const zug = findeMoeglichenZug(feld);
-    if (zug && !beschaeftigt) zug.forEach((z) => elementBei(z).classList.add("tipp"));
+    if (zug && !beschaeftigt && spielAktiv) zug.forEach((z) => elementBei(z).classList.add("tipp"));
   }, TIPP_NACH_MS);
 }
 
@@ -386,7 +447,7 @@ function zelleAus(event) {
 }
 
 steineEbene.addEventListener("pointerdown", (event) => {
-  if (beschaeftigt || geste) return;
+  if (beschaeftigt || geste || !spielAktiv) return;
   const zelle = zelleAus(event);
   if (!zelle) return;
   stoppeTipp();
@@ -432,37 +493,268 @@ steineEbene.addEventListener("pointercancel", () => {
 });
 
 // ---------- Spielstart ----------
-async function starteSpiel() {
+// Baut ein neues Feld auf; alle Steine regnen von oben herein.
+async function baueSpielfeld(neuesFeld) {
   beschaeftigt = true;
   stoppeTipp();
   gewaehlt = null;
   steineEbene.innerHTML = "";
   effektEbene.innerHTML = "";
+  lobEbene.innerHTML = "";
   elemente.clear();
-  punkte = 0;
-  zeigePunkte();
-
-  feld = erzeugeFeld(GROESSE, ARTEN);
-  // Zum Start regnen alle Steine von oben herein
+  feld = neuesFeld;
   for (let z = 0; z < GROESSE; z++) {
     for (let s = 0; s < GROESSE; s++) feld[z][s].startZeile = z - GROESSE;
   }
   await lasseFallen();
+  aktualisiereLeuchten();
   beschaeftigt = false;
+}
+
+async function starteEndlos() {
+  modus = "endlos";
+  aufgabe = null;
+  punkte = 0;
+  zeigePunkte();
+  document.getElementById("punkte-leiste").hidden = false;
+  document.getElementById("aufgaben-leiste").hidden = true;
+  neuesSpielKnopf.textContent = "Neues Spiel";
+  schliesseBildschirme();
+  spielAktiv = true;
+  await baueSpielfeld(erzeugeFeld(GROESSE, ARTEN));
   starteTipp();
 }
 
-document.getElementById("neues-spiel").addEventListener("click", () => {
+async function starteAufgabe(nr) {
+  modus = "aufgabe";
+  aufgabeNr = nr;
+  aufgabe = AUFGABEN[nr];
+  stand = leererStand();
+  zuegeUebrig = aufgabe.zuege;
+  punkte = 0;
+  document.getElementById("punkte-leiste").hidden = true;
+  document.getElementById("aufgaben-leiste").hidden = false;
+  document.getElementById("aufgabe-nr").textContent = `Aufgabe ${nr + 1}`;
+  neuesSpielKnopf.textContent = "Nochmal";
+  zeigeAufgabenStand(false);
+  schliesseBildschirme();
+  spielAktiv = false;
+  await baueSpielfeld(erzeugeAufgabenFeld(aufgabe, GROESSE, ARTEN));
+  zeigeAufgabeVor();
+}
+
+// ---------- Aufgaben: Anzeige und Ende ----------
+function zielIcon(ziel) {
+  switch (ziel.typ) {
+    case "sammeln":
+      return `<svg viewBox="0 0 100 100"><use href="#stein-${ziel.art}"/></svg>`;
+    case "befreien":
+      return `<svg viewBox="0 0 100 100"><use href="#stein-0" opacity=".55"/><use href="#ranken-2"/></svg>`;
+    case "staebe":
+      return `<svg viewBox="0 0 100 100"><use href="#zauberstab"/></svg>`;
+    case "punkte":
+      return `<svg viewBox="0 0 100 100"><use href="#stein-1"/></svg>`;
+    default:
+      return "";
+  }
+}
+
+function zeigeAufgabenStand(mitHuepfen) {
+  if (!aufgabe) return;
+  zieleAnzeige.innerHTML = aufgabe.ziele.map((ziel) => {
+    const wert = Math.min(zielStand(ziel, stand), ziel.anzahl);
+    const fertig = wert >= ziel.anzahl ? " fertig" : "";
+    const zahl = ziel.typ === "punkte"
+      ? `${wert.toLocaleString("de-DE")}/${ziel.anzahl.toLocaleString("de-DE")}`
+      : `${wert}/${ziel.anzahl}`;
+    return `<span class="ziel${fertig}">${zielIcon(ziel)}<b>${zahl}</b></span>`;
+  }).join("");
+  if (mitHuepfen) huepfe(zieleAnzeige);
+  zuegeAnzeige.textContent = zuegeUebrig;
+  zuegeAnzeige.classList.toggle("wenig", zuegeUebrig <= 3);
+}
+
+// true, wenn die Aufgabe vorbei ist (geschafft oder keine Züge mehr)
+function pruefeAufgabenEnde() {
+  if (istGeschafft(aufgabe, stand)) {
+    spielAktiv = false;
+    beschaeftigt = false;
+    speichereGeschafft(aufgabeNr);
+    setTimeout(zeigeErfolg, 500);
+    return true;
+  }
+  if (zuegeUebrig <= 0) {
+    spielAktiv = false;
+    beschaeftigt = false;
+    setTimeout(zeigeMisserfolg, 500);
+    return true;
+  }
+  return false;
+}
+
+function ladeGeschafft() {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(FORTSCHRITT_SCHLUESSEL) || "[]"));
+  } catch {
+    return new Set();
+  }
+}
+
+function speichereGeschafft(nr) {
+  const geschafft = ladeGeschafft();
+  geschafft.add(nr);
+  try {
+    localStorage.setItem(FORTSCHRITT_SCHLUESSEL, JSON.stringify([...geschafft]));
+  } catch {
+    // Speichern nicht möglich – Spiel läuft trotzdem.
+  }
+}
+
+// ---------- Bildschirme: Menü, Aufgabenwahl, Dialoge ----------
+const bildschirme = ["menue", "aufgabenwahl", "dialog"].map((id) => document.getElementById(id));
+
+function zeigeBildschirm(id) {
+  stoppeTipp();
+  for (const b of bildschirme) b.hidden = b.id !== id;
+}
+
+function schliesseBildschirme() {
+  for (const b of bildschirme) b.hidden = true;
+}
+
+function zeigeMenue() {
+  spielAktiv = false;
+  document.getElementById("menue-rekord").textContent = rekord.toLocaleString("de-DE");
+  zeigeBildschirm("menue");
+}
+
+function zeigeAufgabenwahl() {
+  const geschafft = ladeGeschafft();
+  const liste = document.getElementById("aufgaben-liste");
+  liste.innerHTML = "";
+  AUFGABEN.forEach((auf, nr) => {
+    // Freigeschaltet: Aufgabe 1 und jede Aufgabe nach einer geschafften
+    const frei = nr === 0 || geschafft.has(nr - 1) || geschafft.has(nr);
+    const knopf = document.createElement("button");
+    knopf.type = "button";
+    knopf.className = "aufgabe-eintrag" + (geschafft.has(nr) ? " geschafft" : "") + (frei ? "" : " gesperrt");
+    knopf.innerHTML =
+      `<span class="aufgabe-nummer">${geschafft.has(nr) ? "✓" : frei ? nr + 1 : "🔒"}</span>` +
+      `<span class="aufgabe-info"><span class="aufgabe-name">${auf.titel}</span>` +
+      `<span class="aufgabe-icons">${auf.ziele.map(zielIcon).join("")}</span></span>`;
+    if (frei) knopf.addEventListener("click", () => starteAufgabe(nr));
+    liste.append(knopf);
+  });
+  zeigeBildschirm("aufgabenwahl");
+}
+
+function zeigeDialog({ figur = "", titel, text, knoepfe }) {
+  document.getElementById("dialog-figur").innerHTML = figur;
+  document.getElementById("dialog-titel").textContent = titel;
+  document.getElementById("dialog-text").innerHTML = text;
+  const reihe = document.getElementById("dialog-knoepfe");
+  reihe.innerHTML = "";
+  for (const { text: t, klasse = "", aktion } of knoepfe) {
+    const k = document.createElement("button");
+    k.type = "button";
+    k.className = `knopf ${klasse}`;
+    k.textContent = t;
+    k.addEventListener("click", aktion);
+    reihe.append(k);
+  }
+  zeigeBildschirm("dialog");
+}
+
+function zielListeHtml(mitStand) {
+  return `<div class="ziel-liste">${aufgabe.ziele.map((ziel) => {
+    const extra = mitStand ? ` – ${Math.min(zielStand(ziel, stand), ziel.anzahl)} geschafft` : "";
+    return `<div class="ziel-zeile">${zielIcon(ziel)}<span>${zielText(ziel)}${extra}</span></div>`;
+  }).join("")}</div>`;
+}
+
+function zeigeAufgabeVor() {
+  const hinweis = aufgabe.ziele.some((z) => z.typ === "befreien")
+    ? "<p>Triff die gefangenen Steine oder ihre Nachbarn, bis die Ranken weg sind!</p>" : "";
+  zeigeDialog({
+    titel: `Aufgabe ${aufgabeNr + 1}: ${aufgabe.titel}`,
+    text: `${zielListeHtml(false)}${hinweis}<p>Du hast <b>${aufgabe.zuege} Züge</b>.</p>`,
+    knoepfe: [
+      { text: "← Zurück", klasse: "knopf-zart", aktion: zeigeAufgabenwahl },
+      { text: "Los geht's!", aktion: () => { schliesseBildschirme(); spielAktiv = true; starteTipp(); } },
+    ],
+  });
+}
+
+function zeigeErfolg() {
+  const naechste = aufgabeNr + 1 < AUFGABEN.length ? aufgabeNr + 1 : null;
+  const knoepfe = [{ text: "☰ Menü", klasse: "knopf-zart", aktion: zeigeAufgabenwahl }];
+  if (naechste !== null) knoepfe.push({ text: "Nächste Aufgabe →", aktion: () => starteAufgabe(naechste) });
+  else knoepfe.push({ text: "Nochmal", aktion: () => starteAufgabe(aufgabeNr) });
+  const rest = zuegeUebrig > 0 ? ` Und du hattest sogar noch <b>${zuegeUebrig} ${zuegeUebrig === 1 ? "Zug" : "Züge"}</b> übrig!` : "";
+  zeigeDialog({
+    figur: EINHORN_SVG,
+    titel: naechste === null ? "Du bist eine Zaubermeisterin!" : "Wunderbar gemacht!",
+    text: naechste === null
+      ? `Du hast alle Aufgaben geschafft. Das Einhorn ist mächtig stolz auf dich!${rest}`
+      : `Das Einhorn gratuliert dir: Du hast „${aufgabe.titel}“ geschafft!${rest}`,
+    knoepfe,
+  });
+  // Funkenregen über dem Spielfeld zur Feier
+  for (const farbe of ["#ff6fae", "#ffc93c", "#a970ff", "#3fa9f5"]) funkenregen([3.5, 3.5], farbe, 6);
+}
+
+function zeigeMisserfolg() {
+  const fehlt = aufgabe.ziele.reduce((summe, z) =>
+    summe + (z.typ === "punkte" ? 0 : Math.max(0, z.anzahl - zielStand(z, stand))), 0);
+  const knapp = fehlt > 0 && fehlt <= 3 ? " Es hat nur noch ein kleines bisschen gefehlt!" : "";
+  zeigeDialog({
+    figur: FEE_SVG,
+    titel: fehlt > 0 && fehlt <= 3 ? "Ganz knapp!" : "Fast geschafft!",
+    text: `Die Fee sagt: „Nicht traurig sein – beim nächsten Mal klappt es bestimmt!${knapp} Probier es gleich nochmal.“` +
+      zielListeHtml(true),
+    knoepfe: [
+      { text: "☰ Menü", klasse: "knopf-zart", aktion: zeigeAufgabenwahl },
+      { text: "Nochmal versuchen", aktion: () => starteAufgabe(aufgabeNr) },
+    ],
+  });
+}
+
+// ---------- Knöpfe ----------
+function laeuftEinSpiel() {
+  return modus === "endlos" ? punkte > 0 : (aufgabe && zuegeUebrig < aufgabe.zuege && spielAktiv);
+}
+
+neuesSpielKnopf.addEventListener("click", () => {
   if (beschaeftigt) return;
-  if (punkte > 0 && !confirm("Neues Spiel starten? Die Punkte gehen verloren.")) return;
-  starteSpiel();
+  if (modus === "endlos") {
+    if (punkte > 0 && !confirm("Neues Spiel starten? Die Punkte gehen verloren.")) return;
+    starteEndlos();
+  } else {
+    if (laeuftEinSpiel() && !confirm("Die Aufgabe nochmal von vorne beginnen?")) return;
+    starteAufgabe(aufgabeNr);
+  }
 });
 
+document.getElementById("menue-knopf").addEventListener("click", () => {
+  if (beschaeftigt) return;
+  if (laeuftEinSpiel() && !confirm("Zurück zum Menü? Das laufende Spiel wird beendet.")) return;
+  zeigeMenue();
+});
+
+document.getElementById("start-endlos").addEventListener("click", starteEndlos);
+document.getElementById("start-aufgaben").addEventListener("click", zeigeAufgabenwahl);
+document.getElementById("wahl-zurueck").addEventListener("click", zeigeMenue);
+
 zeigePunkte();
-starteSpiel();
+baueSpielfeld(erzeugeFeld(GROESSE, ARTEN));   // Feld im Hintergrund des Menüs
+zeigeMenue();
 
 // Für automatische Tests
-window.zauberei = { get feld() { return feld; }, get beschaeftigt() { return beschaeftigt; }, get punkte() { return punkte; } };
+window.zauberei = {
+  get feld() { return feld; }, get beschaeftigt() { return beschaeftigt; }, get punkte() { return punkte; },
+  get stand() { return stand; }, get zuege() { return zuegeUebrig; }, get spielAktiv() { return spielAktiv; },
+  starteAufgabe, starteEndlos,
+};
 
 // ---------- Offline-Unterstützung & Updates ----------
 // Neue Versionen werden beim Öffnen und bei jeder Rückkehr in die App gesucht.

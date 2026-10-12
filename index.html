@@ -116,7 +116,9 @@
   <main id="app">
     <header class="kopf">
       <h1>1-2-3 <span>Zauberei</span></h1>
-      <div class="punkte-leiste">
+
+      <!-- Endlos-Modus: Punkte und Rekord -->
+      <div id="punkte-leiste" class="leiste">
         <div class="anzeige">
           <span class="beschriftung">Punkte</span>
           <span id="punkte" class="wert">0</span>
@@ -124,6 +126,18 @@
         <div class="anzeige">
           <span class="beschriftung">Rekord</span>
           <span id="rekord" class="wert">0</span>
+        </div>
+      </div>
+
+      <!-- Aufgaben-Modus: Ziel mit Fortschritt und verbleibende Züge -->
+      <div id="aufgaben-leiste" class="leiste" hidden>
+        <div class="anzeige ziel-anzeige">
+          <span id="aufgabe-nr" class="beschriftung">Aufgabe</span>
+          <div id="ziele" class="ziele"></div>
+        </div>
+        <div class="anzeige zuege-anzeige">
+          <span class="beschriftung">Züge</span>
+          <span id="zuege" class="wert">0</span>
         </div>
       </div>
     </header>
@@ -135,10 +149,48 @@
     </section>
 
     <footer class="fuss">
-      <button id="neues-spiel" type="button">Neues Spiel</button>
+      <div class="knopfreihe">
+        <button id="menue-knopf" type="button" class="knopf knopf-zart">☰ Menü</button>
+        <button id="neues-spiel" type="button" class="knopf">Neues Spiel</button>
+      </div>
       <p class="version">Version <span id="version"></span></p>
     </footer>
   </main>
+
+  <!-- Startmenü -->
+  <section id="menue" class="bildschirm" hidden>
+    <div class="karte menue-karte">
+      <h2 class="gross-titel">1-2-3 <span>Zauberei</span></h2>
+      <button id="start-endlos" type="button" class="knopf knopf-gross">
+        <span class="knopf-icon">∞</span> Endlos spielen
+      </button>
+      <button id="start-aufgaben" type="button" class="knopf knopf-gross knopf-lila">
+        <span class="knopf-icon">★</span> Aufgaben
+      </button>
+      <p class="menue-info">Rekord im Endlos-Spiel: <b id="menue-rekord">0</b></p>
+    </div>
+  </section>
+
+  <!-- Aufgaben-Auswahl -->
+  <section id="aufgabenwahl" class="bildschirm" hidden>
+    <div class="karte wahl-karte">
+      <h2>Aufgaben</h2>
+      <div id="aufgaben-liste" class="aufgaben-liste"></div>
+      <button id="wahl-zurueck" type="button" class="knopf knopf-zart">← Zurück</button>
+    </div>
+  </section>
+
+  <!-- Dialog: Aufgabe vorstellen, Erfolg, Ermutigung -->
+  <section id="dialog" class="bildschirm" hidden>
+    <div class="karte dialog-karte">
+      <div id="dialog-figur" class="dialog-figur"></div>
+      <div class="sprechblase">
+        <h2 id="dialog-titel"></h2>
+        <div id="dialog-text"></div>
+      </div>
+      <div id="dialog-knoepfe" class="knopfreihe"></div>
+    </div>
+  </section>
 
   <!-- Hinweis, wenn das Gerät quer gehalten wird -->
   <div id="drehen-hinweis" aria-hidden="true">

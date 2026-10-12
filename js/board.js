@@ -82,6 +82,7 @@ export function bildeCluster(gruppen) {
 
 // Berechnet, was bei den aktuellen Treffern passiert:
 // - welche Zellen verschwinden (inkl. ganzer Reihen durch ausgelöste Zauberstäbe)
+// - welche geschützten Steine (Ranken/Steinhülle) nur eine Schutzschicht verlieren
 // - wo neue Zauberstäbe entstehen (bei Clustern ab 4 Steinen)
 // bevorzugt: Zellen, an denen ein neuer Stab bevorzugt entstehen soll (die getauschten Steine).
 export function berechneAufloesung(feld, gruppen, bevorzugt = []) {
@@ -107,18 +108,108 @@ export function berechneAufloesung(feld, gruppen, bevorzugt = []) {
     }
   }
 
+  // Treffer direkt neben geschützten Steinen knacken ebenfalls eine Schicht
+  const nebenan = new Map();
+  for (const [z, s] of entfernen.values()) {
+    for (const [dz, ds] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+      const nachbar = feld[z + dz]?.[s + ds];
+      const k = key([z + dz, s + ds]);
+      if (nachbar?.schutz > 0 && !entfernen.has(k)) nebenan.set(k, [z + dz, s + ds]);
+    }
+  }
+
   // Neue Zauberstäbe
   const neueStaebe = [];
   for (const c of bildeCluster(gruppen)) {
     if (c.zellen.length < 4) continue;
-    const imCluster = (zelle) => c.zellen.some((x) => x[0] === zelle[0] && x[1] === zelle[1]);
-    const sortiert = [...c.zellen].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
-    const ziel = bevorzugt.find(imCluster) || sortiert[Math.floor(sortiert.length / 2)];
+    // Ein Stab entsteht nur auf einem ungeschützten Stein
+    const frei = c.zellen.filter(([z, s]) => !(feld[z][s].schutz > 0));
+    if (!frei.length) continue;
+    const istFrei = (zelle) => frei.some((x) => x[0] === zelle[0] && x[1] === zelle[1]);
+    const sortiert = [...frei].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    const ziel = bevorzugt.find(istFrei) || sortiert[Math.floor(sortiert.length / 2)];
     neueStaebe.push({ zelle: ziel, art: c.art });
     entfernen.delete(key(ziel));
   }
 
-  return { entfernen: [...entfernen.values()], neueStaebe, ausgeloest };
+  // Geschützte Steine verlieren nur eine Schicht und bleiben liegen
+  const geschwaecht = [...nebenan.values()];
+  for (const [k, [z, s]] of entfernen) {
+    if (feld[z][s].schutz > 0) {
+      geschwaecht.push([z, s]);
+      entfernen.delete(k);
+    }
+  }
+
+  return { entfernen: [...entfernen.values()], geschwaecht, neueStaebe, ausgeloest };
+}
+
+// Punkte eines Auflöse-Schritts. kette: 1 beim Zug, 2+ bei Kettenreaktionen.
+export const PUNKTE_PRO_STEIN = 10;
+export const BONUS = { 4: 20, 5: 50 };
+export const STAB_BONUS = 50;
+
+export function berechnePunkte(gruppen, aufloesung, kette) {
+  const inGruppe = new Set();
+  const proGruppe = gruppen.map((g) => {
+    g.zellen.forEach((z) => inGruppe.add(z.join(",")));
+    const n = g.zellen.length;
+    return (n * PUNKTE_PRO_STEIN + (BONUS[Math.min(n, 5)] || 0)) * kette;
+  });
+  const betroffen = [...aufloesung.entfernen, ...aufloesung.geschwaecht];
+  const proReihe = [];
+  const gezaehlt = new Set();
+  for (const [z] of aufloesung.ausgeloest) {
+    if (gezaehlt.has(z)) continue;            // zwei Stäbe in einer Reihe: Reihe nur einmal zählen
+    gezaehlt.add(z);
+    const extra = betroffen.filter(([zz, ss]) => zz === z && !inGruppe.has(`${zz},${ss}`)).length;
+    proReihe.push({ zeile: z, punkte: (extra * PUNKTE_PRO_STEIN + STAB_BONUS) * kette });
+  }
+  const gesamt = proGruppe.reduce((a, b) => a + b, 0) + proReihe.reduce((a, r) => a + r.punkte, 0);
+  return { gesamt, proGruppe, proReihe };
+}
+
+// Wendet einen berechneten Schritt auf das Feld an und liefert eine Statistik für die Aufgaben:
+// gesammelt[art] = aufgelöste Steine je Art (ein Stein, der zum Zauberstab wird, zählt mit),
+// befreit = gefangene Steine, deren letzte Schutzschicht gerade geknackt wurde,
+// geknackt = getroffene Schutzschichten, staebe = neu entstandene Zauberstäbe.
+export function wendeAufloesungAn(feld, aufloesung, arten, zufall = Math.random) {
+  const statistik = { gesammelt: new Array(arten).fill(0), befreit: 0, staebe: 0, geknackt: 0 };
+  for (const [z, s] of aufloesung.geschwaecht) {
+    const stein = feld[z][s];
+    stein.schutz--;
+    statistik.geknackt++;
+    if (stein.schutz === 0 && stein.gefangen) {
+      stein.gefangen = false;
+      statistik.befreit++;
+    }
+  }
+  for (const [z, s] of aufloesung.entfernen) statistik.gesammelt[feld[z][s].art]++;
+  for (const { zelle: [z, s], art } of aufloesung.neueStaebe) {
+    feld[z][s].art = art;
+    feld[z][s].spezial = "stab";
+    statistik.gesammelt[art]++;
+    statistik.staebe++;
+  }
+  entferneUndFuelle(feld, aufloesung.entfernen, arten, zufall);
+  return statistik;
+}
+
+// Spielt alle Auflöse-Schritte eines Zugs ohne Grafik durch (für Tests und Simulation).
+export function spieleAufloesungDurch(feld, bevorzugt, arten, zufall = Math.random) {
+  const summe = { gesammelt: new Array(arten).fill(0), befreit: 0, staebe: 0, geknackt: 0, punkte: 0 };
+  for (let kette = 1; ; kette++) {
+    const gruppen = findeAlleTreffer(feld);
+    if (!gruppen.length) break;
+    const aufloesung = berechneAufloesung(feld, gruppen, kette === 1 ? bevorzugt : []);
+    summe.punkte += berechnePunkte(gruppen, aufloesung, kette).gesamt;
+    const st = wendeAufloesungAn(feld, aufloesung, arten, zufall);
+    st.gesammelt.forEach((n, i) => (summe.gesammelt[i] += n));
+    summe.befreit += st.befreit;
+    summe.staebe += st.staebe;
+    summe.geknackt += st.geknackt;
+  }
+  return summe;
 }
 
 export function sindNachbarn([z1, s1], [z2, s2]) {
@@ -202,16 +293,39 @@ export function entferneUndFuelle(feld, zellen, arten, zufall = Math.random) {
   }
 }
 
-// Mischt die Arten neu, bis es keine fertigen Treffer und mindestens einen Zug gibt.
+// Mischt die vorhandenen Steine neu, bis es keine fertigen Treffer (auch keine Zauberstab-Paare)
+// und mindestens einen Zug gibt. Jeder Stein wird so gesetzt, dass er mit den bereits gesetzten
+// Nachbarn links und oben nichts auslöst.
 export function mische(feld, zufall = Math.random) {
-  const steine = feld.flat();
   const n = feld.length;
-  for (let versuch = 0; versuch < 200; versuch++) {
-    for (let i = steine.length - 1; i > 0; i--) {
-      const j = Math.floor(zufall() * (i + 1));
-      [steine[i], steine[j]] = [steine[j], steine[i]];
+  const alle = feld.flat();
+  const passt = (neu, z, s, stein) => {
+    const links = s > 0 ? neu[z][s - 1] : null;
+    const oben = z > 0 ? neu[z - 1][s] : null;
+    if (s >= 2 && links.art === stein.art && neu[z][s - 2].art === stein.art) return false;
+    if (z >= 2 && oben.art === stein.art && neu[z - 2][s].art === stein.art) return false;
+    for (const nb of [links, oben]) {
+      if (nb && nb.art === stein.art && (nb.spezial === "stab" || stein.spezial === "stab")) return false;
     }
-    for (let z = 0; z < n; z++) for (let s = 0; s < n; s++) feld[z][s] = steine[z * n + s];
+    return true;
+  };
+  for (let versuch = 0; versuch < 300; versuch++) {
+    const vorrat = [...alle];
+    for (let i = vorrat.length - 1; i > 0; i--) {
+      const j = Math.floor(zufall() * (i + 1));
+      [vorrat[i], vorrat[j]] = [vorrat[j], vorrat[i]];
+    }
+    const neu = Array.from({ length: n }, () => []);
+    let ok = true;
+    for (let z = 0; z < n && ok; z++) {
+      for (let s = 0; s < n; s++) {
+        const i = vorrat.findIndex((stein) => passt(neu, z, s, stein));
+        if (i < 0) { ok = false; break; }
+        neu[z][s] = vorrat.splice(i, 1)[0];
+      }
+    }
+    if (!ok) continue;
+    for (let z = 0; z < n; z++) for (let s = 0; s < n; s++) feld[z][s] = neu[z][s];
     if (findeAlleTreffer(feld).length === 0 && findeMoeglichenZug(feld)) return true;
   }
   return false;

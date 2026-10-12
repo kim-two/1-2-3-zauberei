@@ -101,6 +101,54 @@ export const SVG_DEFS = `
       <circle cx="56" cy="18" r="3" fill="#fff"/>
     </symbol>
 
+    <!-- Ranken-Gitter (2 Schichten): Rahmen aus Ranken mit dünnem Kreuz, Stein bleibt gut sichtbar -->
+    <symbol id="ranken-2" viewBox="0 0 100 100">
+      <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M16 7 Q33 2 50 7 T84 7 Q94 10 93 22 Q98 36 93 50 T93 78 Q92 92 80 93 Q66 98 50 93 T18 93 Q7 91 7 78 Q2 64 7 50 T7 20 Q8 9 16 7 Z" stroke="#2f8a3e" stroke-width="7"/>
+        <path d="M16 7 Q33 2 50 7 T84 7 Q94 10 93 22 Q98 36 93 50 T93 78 Q92 92 80 93 Q66 98 50 93 T18 93 Q7 91 7 78 Q2 64 7 50 T7 20 Q8 9 16 7 Z" stroke="#7fdc89" stroke-width="2.5"/>
+        <path d="M12 12 Q40 30 50 50 T88 88 M88 12 Q60 30 50 50 T12 88" stroke="#2f8a3e" stroke-width="4"/>
+        <path d="M12 12 Q40 30 50 50 T88 88 M88 12 Q60 30 50 50 T12 88" stroke="#7fdc89" stroke-width="1.5"/>
+      </g>
+      <g fill="#4cc96b" stroke="#2f8a3e" stroke-width="2">
+        <ellipse cx="10" cy="10" rx="9" ry="5" transform="rotate(-40 10 10)"/>
+        <ellipse cx="90" cy="10" rx="9" ry="5" transform="rotate(40 90 10)"/>
+        <ellipse cx="10" cy="90" rx="9" ry="5" transform="rotate(40 10 90)"/>
+        <ellipse cx="90" cy="90" rx="9" ry="5" transform="rotate(-40 90 90)"/>
+        <ellipse cx="50" cy="5" rx="7" ry="4"/>
+        <ellipse cx="50" cy="95" rx="7" ry="4"/>
+      </g>
+    </symbol>
+
+    <!-- Ranken-Gitter (1 Schicht): Rahmen gerissen, Kreuz weg -->
+    <symbol id="ranken-1" viewBox="0 0 100 100">
+      <g fill="none" stroke-linecap="round">
+        <path d="M7 50 Q2 64 7 78 Q7 91 18 93 Q34 98 50 93" stroke="#2f8a3e" stroke-width="6"/>
+        <path d="M7 50 Q2 64 7 78 Q7 91 18 93 Q34 98 50 93" stroke="#7fdc89" stroke-width="2"/>
+        <path d="M50 7 Q67 2 84 7 Q94 10 93 22 Q98 36 93 50" stroke="#2f8a3e" stroke-width="6"/>
+        <path d="M50 7 Q67 2 84 7 Q94 10 93 22 Q98 36 93 50" stroke="#7fdc89" stroke-width="2"/>
+      </g>
+      <g fill="#4cc96b" stroke="#2f8a3e" stroke-width="2">
+        <ellipse cx="90" cy="10" rx="8" ry="4.5" transform="rotate(40 90 10)"/>
+        <ellipse cx="10" cy="90" rx="8" ry="4.5" transform="rotate(40 10 90)"/>
+      </g>
+    </symbol>
+
+    <!-- Steinhülle (dritte Schicht, liegt unter den Ranken) -->
+    <linearGradient id="v-huelle" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ece6f5"/>
+      <stop offset="1" stop-color="#a99bbf"/>
+    </linearGradient>
+    <symbol id="huelle" viewBox="0 0 100 100">
+      <path fill-rule="evenodd" fill="url(#v-huelle)" stroke="#7d6f93" stroke-width="3"
+        d="M14 3 H86 Q97 3 97 14 V86 Q97 97 86 97 H14 Q3 97 3 86 V14 Q3 3 14 3 Z
+           M50 20 A30 30 0 1 0 50.01 20 Z"/>
+      <g fill="none" stroke="#7d6f93" stroke-width="2.5" stroke-linecap="round">
+        <path d="M3 34 H18"/><path d="M82 34 H97"/><path d="M3 66 H18"/><path d="M82 66 H97"/>
+        <path d="M34 3 V16"/><path d="M66 84 V97"/><path d="M30 86 L22 94"/><path d="M76 8 L84 14"/>
+      </g>
+      <path d="M10 10 L22 10" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".8"/>
+    </symbol>
+
     <!-- Funkel-Stern für Effekte -->
     <symbol id="funkel" viewBox="0 0 20 20">
       <path d="M10 0 Q11.5 8.5 20 10 Q11.5 11.5 10 20 Q8.5 11.5 0 10 Q8.5 8.5 10 0 Z"/>

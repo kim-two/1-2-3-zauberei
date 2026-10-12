@@ -23,6 +23,32 @@ Ein Match-3-Puzzlespiel für den Browser auf Tablets, bereitgestellt über GitHu
 - Nach 6 Sekunden ohne Zug zeigt das Spiel einen Tipp; gibt es keinen Zug mehr, wird neu gemischt
 - Der Rekord wird auf dem Gerät gespeichert
 
+## Aufgaben-Modus
+
+Im Startmenü wählt man zwischen **Endlos spielen** und **Aufgaben**. Es gibt 10 Aufgaben mit begrenzten Zügen;
+eine Aufgabe wird freigeschaltet, wenn die vorherige geschafft ist (Fortschritt wird auf dem Gerät gespeichert).
+
+- **Ziel-Typen:** Steine einer Art sammeln, gefangene Steine befreien, Punkte erreichen, Zauberstäbe erzeugen
+- **Gefangene Steine:** Ranken-Gitter (2 Treffer) oder Steinhülle mit Ranken (3 Treffer). Ein Treffer ist ein
+  Treffer mit dem Stein selbst oder direkt daneben (waagerecht/senkrecht). Ist der Schutz weg, gilt der Stein als befreit
+- Steine, die für ein offenes Ziel zählen, leuchten
+- Oben stehen das Ziel mit Fortschritt (z. B. 7/15) und die verbleibenden Züge
+- Geschafft: Ein Einhorn gratuliert. Nicht geschafft: Eine Fee macht Mut, es nochmal zu probieren
+- Die Aufgaben stehen in `js/aufgaben.js` und lassen sich dort leicht anpassen
+
+| Nr. | Aufgabe | Ziel | Züge |
+|----:|---------|------|-----:|
+| 1 | Am Zauberfluss | 15 Tropfen sammeln | 20 |
+| 2 | Punkte-Zauber | 1.500 Punkte | 15 |
+| 3 | Schatz im Wald | 15 Blätter + 15 Sterne | 22 |
+| 4 | Zauberstab-Schule | 3 Zauberstäbe | 20 |
+| 5 | Blumenwiese | 18 Blumen | 20 |
+| 6 | Ranken im Garten | 6 Steine aus Ranken befreien | 15 |
+| 7 | Verwunschene Brücke | 10 Steine aus Ranken befreien | 17 |
+| 8 | Kristallhöhle | 25 Kristalle | 22 |
+| 9 | Steinzauber | 6 Steine aus Steinhüllen befreien | 18 |
+| 10 | Große Zauberprobe | 10 Steine befreien + 15 Einhorn-Hörner | 22 |
+
 ## Aufbau
 
 | Datei / Ordner          | Zweck                                                        |
@@ -31,7 +57,9 @@ Ein Match-3-Puzzlespiel für den Browser auf Tablets, bereitgestellt über GitHu
 | `css/style.css`         | Aussehen und Layout                                          |
 | `js/main.js`            | Darstellung, Touch-Steuerung und Effekte (Einstiegspunkt)    |
 | `js/board.js`           | Spielregeln: Feld, Treffer, Nachfallen, mögliche Züge        |
-| `js/steine.js`          | Die sechs Spielsteine als SVG-Zeichnungen                    |
+| `js/steine.js`          | Spielsteine, Zauberstab, Ranken und Steinhülle als SVG       |
+| `js/aufgaben.js`        | Liste der Aufgaben, Ziele und Aufgaben-Spielfeld             |
+| `js/figuren.js`         | Einhorn und Fee für die Rückmeldung                          |
 | `sw.js`                 | Service Worker – speichert das Spiel für den Offline-Betrieb |
 | `manifest.webmanifest`  | App-Name, Icon und Darstellung bei Installation              |
 | `icons/`                | App-Icons                                                    |
