@@ -3,7 +3,7 @@
 //
 // WICHTIG: Bei jeder Veröffentlichung CACHE_VERSION erhöhen (und VERSION in js/main.js),
 // sonst sehen Geräte, die das Spiel schon geöffnet hatten, die alte Fassung.
-const CACHE_VERSION = "0.3.0";
+const CACHE_VERSION = "0.4.0";
 const CACHE_NAME = `zauberei-${CACHE_VERSION}`;
 
 const DATEIEN = [

@@ -132,6 +132,33 @@ export function tausche(feld, [z1, s1], [z2, s2]) {
 }
 
 // Sucht einen Tausch, der zu einem Treffer führt. Liefert [a, b] oder null.
+// Zauberstab-Paare: Nach einem Zug reicht ein gleichfarbiger Nachbar (waagerecht oder senkrecht),
+// um einen Zauberstab auszulösen. Geprüft werden nur die beiden getauschten Zellen.
+export function findeStabPaare(feld, zellen) {
+  const paare = [];
+  const gesehen = new Set();
+  for (const [z, s] of zellen) {
+    const stein = feld[z]?.[s];
+    if (!stein) continue;
+    for (const [dz, ds] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+      const nachbar = feld[z + dz]?.[s + ds];
+      if (!nachbar || nachbar.art !== stein.art) continue;
+      if (stein.spezial !== "stab" && nachbar.spezial !== "stab") continue;
+      const zellenPaar = [[z, s], [z + dz, s + ds]];
+      const schluessel = zellenPaar.map((x) => x.join(",")).sort().join("|");
+      if (gesehen.has(schluessel)) continue;
+      gesehen.add(schluessel);
+      paare.push({ zellen: zellenPaar, art: stein.art });
+    }
+  }
+  return paare;
+}
+
+// Alle Treffer eines Zugs: normale Dreierreihen plus Zauberstab-Paare an den getauschten Zellen.
+export function findeZugTreffer(feld, a, b) {
+  return [...findeTreffer(feld), ...findeStabPaare(feld, [a, b])];
+}
+
 export function findeMoeglichenZug(feld) {
   const n = feld.length;
   for (let z = 0; z < n; z++) {
@@ -140,7 +167,7 @@ export function findeMoeglichenZug(feld) {
         const z2 = z + dz, s2 = s + ds;
         if (z2 >= n || s2 >= n) continue;
         tausche(feld, [z, s], [z2, s2]);
-        const treffer = findeTreffer(feld).length > 0;
+        const treffer = findeZugTreffer(feld, [z, s], [z2, s2]).length > 0;
         tausche(feld, [z, s], [z2, s2]);
         if (treffer) return [[z, s], [z2, s2]];
       }

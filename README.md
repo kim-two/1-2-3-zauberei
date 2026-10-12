@@ -17,8 +17,10 @@ Ein Match-3-Puzzlespiel für den Browser auf Tablets, bereitgestellt über GitHu
 - Drei oder mehr gleiche in einer Reihe lösen sich mit Funkel-Effekt auf
 - 10 Punkte pro Stein, Bonus für Vierer (+20) und Fünfer (+50), Kettenreaktionen zählen mehrfach
 - **Zauberstab:** Lösen sich mindestens 4 gleiche Steine zusammen auf (Reihe, L- oder T-Form), wird einer davon
-  zum Zauberstab – an der Stelle des gezogenen Steins. Wird der Stab Teil eines Treffers, löst er seine ganze
-  waagerechte Reihe auf (+50 Bonus, dazu 10 Punkte je zusätzlichem Stein)
+  zum Zauberstab – an der Stelle des gezogenen Steins. Der Stab löst seine ganze waagerechte Reihe auf
+  (+50 Bonus, dazu 10 Punkte je zusätzlichem Stein). Ausgelöst wird er, wenn ein Zug ihn neben mindestens
+  einen gleichfarbigen Stein bringt (oder einen gleichfarbigen Stein neben ihn) – oder wenn er Teil einer
+  normalen Dreierreihe wird
 - Nach 6 Sekunden ohne Zug zeigt das Spiel einen Tipp; gibt es keinen Zug mehr, wird neu gemischt
 - Der Rekord wird auf dem Gerät gespeichert
 

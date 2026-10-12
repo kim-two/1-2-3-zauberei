@@ -1,10 +1,10 @@
 // Einstiegspunkt des Spiels: Darstellung, Touch-Steuerung und Effekte.
 // Die Versionsnummer muss mit CACHE_VERSION in sw.js übereinstimmen.
-const VERSION = "0.3.0";
+const VERSION = "0.4.0";
 
 import {
   erzeugeFeld, findeTreffer, findeMoeglichenZug, sindNachbarn,
-  tausche, entferneUndFuelle, mische, berechneAufloesung,
+  tausche, entferneUndFuelle, mische, berechneAufloesung, findeZugTreffer,
 } from "./board.js";
 import { STEINE, SVG_DEFS } from "./steine.js";
 
@@ -203,10 +203,13 @@ function zeigeLob(text) {
 
 // ---------- Spielablauf ----------
 // bevorzugt: Zellen des Tauschs – dort entsteht ein neuer Zauberstab am liebsten.
+// Im ersten Schritt zählen auch Zauberstab-Paare (Stab + gleichfarbiger Nachbar).
 async function loeseTrefferAuf(bevorzugt = []) {
   let kette = 1;
   for (;;) {
-    const gruppen = findeTreffer(feld);
+    const gruppen = kette === 1 && bevorzugt.length === 2
+      ? findeZugTreffer(feld, bevorzugt[0], bevorzugt[1])
+      : findeTreffer(feld);
     if (!gruppen.length) break;
 
     const { entfernen, neueStaebe, ausgeloest } =
@@ -329,7 +332,7 @@ async function versucheTausch(a, b) {
   setzePosition(elB, a[0], a[1]);
   await warte(220);
 
-  if (findeTreffer(feld).length === 0) {
+  if (findeZugTreffer(feld, a, b).length === 0) {
     // Kein Treffer: zurücktauschen und kurz wackeln
     tausche(feld, a, b);
     setzePosition(elA, a[0], a[1]);
