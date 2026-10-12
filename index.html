@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <!-- Kein Zoomen, Inhalt bis in die Ecken (iPad ohne Home-Button) -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>1-2-3 Zauberei</title>
+  <meta name="description" content="Ein Match-3-Puzzlespiel für das Tablet.">
+  <meta name="theme-color" content="#2a1b4d">
+
+  <!-- Installierbar als App (Home-Bildschirm) -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Zauberei">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main id="app">
+    <header class="titel">
+      <h1>1-2-3<br><span>Zauberei</span></h1>
+    </header>
+
+    <!-- Platzhalter für das Spielfeld (8×8) – kommt im nächsten Schritt -->
+    <section id="spielfeld" aria-label="Spielfeld"></section>
+
+    <footer class="info">
+      <p id="status">Grundgerüst steht. Das Spiel folgt.</p>
+      <p class="version">Version <span id="version"></span></p>
+    </footer>
+  </main>
+
+  <!-- Hinweis, wenn das Gerät quer gehalten wird -->
+  <div id="drehen-hinweis" aria-hidden="true">
+    <div class="drehen-icon">📱</div>
+    <p>Bitte das iPad hochkant halten</p>
+  </div>
+
+  <script src="js/main.js"></script>
+</body>
+</html>
