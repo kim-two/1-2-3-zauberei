@@ -1,6 +1,6 @@
 // Einstiegspunkt des Spiels: Darstellung, Touch-Steuerung und Effekte.
 // Die Versionsnummer muss mit CACHE_VERSION in sw.js übereinstimmen.
-const VERSION = "0.6.0";
+const VERSION = "0.6.1";
 
 import {
   erzeugeFeld, setzeMinLaenge, findeMoeglichenZug, sindNachbarn, tausche, mische,
@@ -425,7 +425,7 @@ async function versucheTausch(a, b) {
     }
     await loeseTrefferAuf([b, a]);   // b: dorthin wurde der Stein gezogen
     if (modus === "aufgabe" && pruefeAufgabenEnde()) return;
-    if (await dracheNachZug()) return;   // Drache hat den Spielfluss übernommen (Dialog offen)
+    await dracheNachZug();               // Drache kann auftauchen (Dialog offen, spielAktiv ist dann false)
   }
 
   beschaeftigt = false;
@@ -891,6 +891,7 @@ async function dracheErscheint() {
 
 function setzeSpielFort() {
   schliesseBildschirme();
+  beschaeftigt = false;
   spielAktiv = true;
   aktualisiereDracheLeiste();
   starteTipp();
