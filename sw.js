@@ -3,7 +3,7 @@
 //
 // WICHTIG: Bei jeder Veröffentlichung CACHE_VERSION erhöhen (und VERSION in js/main.js),
 // sonst sehen Geräte, die das Spiel schon geöffnet hatten, die alte Fassung.
-const CACHE_VERSION = "0.4.1";
+const CACHE_VERSION = "0.4.2";
 const CACHE_NAME = `zauberei-${CACHE_VERSION}`;
 
 const DATEIEN = [
@@ -21,7 +21,10 @@ const DATEIEN = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(DATEIEN))
+    // cache: "reload" holt die Dateien garantiert frisch vom Server (nicht aus dem Browser-Zwischenspeicher)
+    caches.open(CACHE_NAME).then((cache) =>
+      cache.addAll(DATEIEN.map((datei) => new Request(datei, { cache: "reload" })))
+    )
   );
   self.skipWaiting();
 });
@@ -40,18 +43,21 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
-// Netz zuerst (damit Updates ankommen), bei fehlendem Internet aus dem Speicher.
+// Netz zuerst (damit Updates sofort ankommen), bei fehlendem Internet aus dem Speicher.
+// cache: "no-cache" fragt immer beim Server nach, ob es eine neuere Datei gibt –
+// GitHub Pages erlaubt Browsern sonst, Dateien bis zu 10 Minuten alt auszuliefern.
 self.addEventListener("fetch", (event) => {
-  if (event.request.method !== "GET") return;
+  const anfrage = event.request;
+  if (anfrage.method !== "GET" || new URL(anfrage.url).origin !== self.location.origin) return;
   event.respondWith(
-    fetch(event.request)
+    fetch(anfrage.url, { cache: "no-cache", credentials: "same-origin" })
       .then((antwort) => {
-        const kopie = antwort.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, kopie));
+        if (antwort.ok) {
+          const kopie = antwort.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(anfrage, kopie));
+        }
         return antwort;
       })
-      .catch(() =>
-        caches.match(event.request, { ignoreSearch: true })
-      )
+      .catch(() => caches.match(anfrage, { ignoreSearch: true }))
   );
 });

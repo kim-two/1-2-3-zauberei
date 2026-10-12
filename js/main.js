@@ -1,6 +1,6 @@
 // Einstiegspunkt des Spiels: Darstellung, Touch-Steuerung und Effekte.
 // Die Versionsnummer muss mit CACHE_VERSION in sw.js übereinstimmen.
-const VERSION = "0.4.1";
+const VERSION = "0.4.2";
 
 import {
   erzeugeFeld, findeMoeglichenZug, sindNachbarn,
@@ -464,10 +464,40 @@ starteSpiel();
 // Für automatische Tests
 window.zauberei = { get feld() { return feld; }, get beschaeftigt() { return beschaeftigt; }, get punkte() { return punkte; } };
 
-// ---------- Offline-Unterstützung ----------
+// ---------- Offline-Unterstützung & Updates ----------
+// Neue Versionen werden beim Öffnen und bei jeder Rückkehr in die App gesucht.
+// Ist eine neue Version bereit, lädt das Spiel sie sofort (wenn noch nicht gespielt wird)
+// oder zeigt einen Hinweis zum Antippen – so gehen keine Punkte verloren.
+function zeigeUpdateHinweis() {
+  if (punkte === 0 && !beschaeftigt) {
+    location.reload();
+    return;
+  }
+  if (document.getElementById("update-hinweis")) return;
+  const knopf = document.createElement("button");
+  knopf.id = "update-hinweis";
+  knopf.type = "button";
+  knopf.textContent = "✨ Neue Version – hier tippen";
+  knopf.addEventListener("click", () => location.reload());
+  document.body.append(knopf);
+}
+
 if ("serviceWorker" in navigator) {
+  let hatteSteuerung = Boolean(navigator.serviceWorker.controller);
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!hatteSteuerung) {          // allererster Start: nichts zu aktualisieren
+      hatteSteuerung = true;
+      return;
+    }
+    zeigeUpdateHinweis();
+  });
+
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("sw.js").catch((fehler) => {
+    navigator.serviceWorker.register("sw.js").then((registrierung) => {
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") registrierung.update().catch(() => {});
+      });
+    }).catch((fehler) => {
       console.warn("Offline-Modus nicht verfügbar:", fehler);
     });
   });

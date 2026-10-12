@@ -487,3 +487,28 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .himmelsterne circle { animation: none; }
 }
+
+/* ---------- Hinweis auf neue Version ---------- */
+
+#update-hinweis {
+  position: fixed;
+  z-index: 10;
+  left: 50%;
+  top: calc(env(safe-area-inset-top) + 12px);
+  transform: translateX(-50%);
+  font-family: var(--schrift);
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #fff;
+  padding: 12px 26px;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #b98cff, #7b3fe4);
+  box-shadow: 0 4px 0 #5a24b8, 0 8px 18px rgba(90, 36, 184, 0.4);
+  animation: hinweis-wippen 1.4s ease-in-out infinite;
+}
+
+@keyframes hinweis-wippen {
+  0%, 100% { transform: translateX(-50%) scale(1); }
+  50% { transform: translateX(-50%) scale(1.06); }
+}
