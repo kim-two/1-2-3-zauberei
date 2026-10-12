@@ -3,22 +3,26 @@
 const VERSION = "0.5.0";
 
 import {
-  erzeugeFeld, findeMoeglichenZug, sindNachbarn, tausche, mische,
+  erzeugeFeld, setzeMinLaenge, findeMoeglichenZug, sindNachbarn, tausche, mische,
   berechneAufloesung, findeAlleTreffer, berechnePunkte, wendeAufloesungAn,
 } from "./board.js";
 import { STEINE, SVG_DEFS } from "./steine.js";
+import { SCHWIERIGKEITEN, REIHENFOLGE, STANDARD, schluessel } from "./schwierigkeit.js";
 import {
-  AUFGABEN, zielText, zielStand, istGeschafft, leererStand, addiereStand, erzeugeAufgabenFeld,
+  AUFGABEN, aufgabeFuerStufe, zielText, zielStand, istGeschafft, leererStand, addiereStand, erzeugeAufgabenFeld,
 } from "./aufgaben.js";
 import { EINHORN_SVG, FEE_SVG } from "./figuren.js";
 
 // ---------- Einstellungen ----------
-const GROESSE = 8;
+let GROESSE = 8;                     // Kantenlänge – hängt von der Schwierigkeit ab (setzeStufe)
 const ARTEN = STEINE.length;
 const TIPP_NACH_MS = 6000;           // nach so langer Pause zeigt das Spiel einen möglichen Zug
 const LOB_KETTE = ["Toll!", "Super!", "Fantastisch!", "Zauberhaft!"]; // 2., 3., 4., 5.+ Kettenreaktion
-const REKORD_SCHLUESSEL = "zauberei-rekord";
-const FORTSCHRITT_SCHLUESSEL = "zauberei-aufgaben";   // Liste der geschafften Aufgaben
+const REKORD_BASIS = "zauberei-rekord";
+const FORTSCHRITT_BASIS = "zauberei-aufgaben";       // Liste der geschafften Aufgaben
+const STUFE_SCHLUESSEL = "zauberei-stufe";           // zuletzt gewählte Schwierigkeit
+const rekordSchluessel = () => schluessel(REKORD_BASIS, stufe.id);
+const fortschrittSchluessel = () => schluessel(FORTSCHRITT_BASIS, stufe.id);
 
 // ---------- Elemente ----------
 document.body.insertAdjacentHTML("afterbegin", SVG_DEFS);
@@ -33,9 +37,10 @@ const neuesSpielKnopf = document.getElementById("neues-spiel");
 document.getElementById("version").textContent = VERSION;
 
 // ---------- Zustand ----------
+let stufe = SCHWIERIGKEITEN[STANDARD];
 let feld = [];
 let punkte = 0;
-let rekord = ladeRekord();
+let rekord = 0;
 let beschaeftigt = false;            // während Animationen keine Eingaben
 let gewaehlt = null;                 // [zeile, spalte] des angetippten Steins
 let tippTimer = null;
@@ -54,7 +59,7 @@ const zufall = (min, max) => min + Math.random() * (max - min);
 // ---------- Punkte & Rekord ----------
 function ladeRekord() {
   try {
-    return Number(localStorage.getItem(REKORD_SCHLUESSEL)) || 0;
+    return Number(localStorage.getItem(rekordSchluessel())) || 0;
   } catch {
     return 0;
   }
@@ -62,7 +67,7 @@ function ladeRekord() {
 
 function speichereRekord() {
   try {
-    localStorage.setItem(REKORD_SCHLUESSEL, String(rekord));
+    localStorage.setItem(rekordSchluessel(), String(rekord));
   } catch {
     // Speichern nicht möglich (z. B. privater Modus) – Spiel läuft trotzdem.
   }
@@ -528,7 +533,7 @@ async function starteEndlos() {
 async function starteAufgabe(nr) {
   modus = "aufgabe";
   aufgabeNr = nr;
-  aufgabe = AUFGABEN[nr];
+  aufgabe = aufgabeFuerStufe(AUFGABEN[nr], stufe);
   stand = leererStand();
   zuegeUebrig = aufgabe.zuege;
   punkte = 0;
@@ -594,7 +599,7 @@ function pruefeAufgabenEnde() {
 
 function ladeGeschafft() {
   try {
-    return new Set(JSON.parse(localStorage.getItem(FORTSCHRITT_SCHLUESSEL) || "[]"));
+    return new Set(JSON.parse(localStorage.getItem(fortschrittSchluessel()) || "[]"));
   } catch {
     return new Set();
   }
@@ -604,7 +609,7 @@ function speichereGeschafft(nr) {
   const geschafft = ladeGeschafft();
   geschafft.add(nr);
   try {
-    localStorage.setItem(FORTSCHRITT_SCHLUESSEL, JSON.stringify([...geschafft]));
+    localStorage.setItem(fortschrittSchluessel(), JSON.stringify([...geschafft]));
   } catch {
     // Speichern nicht möglich – Spiel läuft trotzdem.
   }
@@ -622,9 +627,55 @@ function schliesseBildschirme() {
   for (const b of bildschirme) b.hidden = true;
 }
 
+// Schwierigkeit wählen: Feldgröße, Auflöse-Regel, Rekord und Fortschritt hängen daran.
+function setzeStufe(id, speichern = true) {
+  stufe = SCHWIERIGKEITEN[id] || SCHWIERIGKEITEN[STANDARD];
+  GROESSE = stufe.groesse;
+  setzeMinLaenge(stufe.minLaenge);
+  document.documentElement.style.setProperty("--n", GROESSE);
+  rekord = ladeRekord();
+  if (speichern) {
+    try { localStorage.setItem(STUFE_SCHLUESSEL, stufe.id); } catch { /* egal */ }
+  }
+}
+
+function ladeStufe() {
+  try {
+    return localStorage.getItem(STUFE_SCHLUESSEL) || STANDARD;
+  } catch {
+    return STANDARD;
+  }
+}
+
+function zeigeStufenwahl() {
+  const reihe = document.getElementById("stufen");
+  reihe.innerHTML = "";
+  for (const id of REIHENFOLGE) {
+    const s = SCHWIERIGKEITEN[id];
+    const knopf = document.createElement("button");
+    knopf.type = "button";
+    knopf.className = "stufe" + (s.id === stufe.id ? " gewaehlt" : "");
+    knopf.setAttribute("aria-pressed", s.id === stufe.id);
+    knopf.dataset.stufe = s.id;
+    knopf.innerHTML = `<span class="stufe-kurz">${s.kurz}</span><span class="stufe-name">${s.name}</span>`;
+    knopf.addEventListener("click", () => waehleStufe(s.id));
+    reihe.append(knopf);
+  }
+  document.getElementById("stufe-text").textContent = stufe.beschreibung;
+  document.getElementById("menue-rekord").textContent = rekord.toLocaleString("de-DE");
+}
+
+async function waehleStufe(id) {
+  if (id === stufe.id) return;
+  setzeStufe(id);
+  zeigeStufenwahl();
+  zeigePunkte();
+  await baueSpielfeld(erzeugeFeld(GROESSE, ARTEN));   // Hintergrund-Feld in neuer Größe
+}
+
 function zeigeMenue() {
   spielAktiv = false;
-  document.getElementById("menue-rekord").textContent = rekord.toLocaleString("de-DE");
+  zeigeStufenwahl();
   zeigeBildschirm("menue");
 }
 
@@ -745,6 +796,7 @@ document.getElementById("start-endlos").addEventListener("click", starteEndlos);
 document.getElementById("start-aufgaben").addEventListener("click", zeigeAufgabenwahl);
 document.getElementById("wahl-zurueck").addEventListener("click", zeigeMenue);
 
+setzeStufe(ladeStufe(), false);
 zeigePunkte();
 baueSpielfeld(erzeugeFeld(GROESSE, ARTEN));   // Feld im Hintergrund des Menüs
 zeigeMenue();
@@ -753,7 +805,8 @@ zeigeMenue();
 window.zauberei = {
   get feld() { return feld; }, get beschaeftigt() { return beschaeftigt; }, get punkte() { return punkte; },
   get stand() { return stand; }, get zuege() { return zuegeUebrig; }, get spielAktiv() { return spielAktiv; },
-  starteAufgabe, starteEndlos,
+  starteAufgabe, starteEndlos, setzeStufe,
+  get groesse() { return GROESSE; },
 };
 
 // ---------- Offline-Unterstützung & Updates ----------

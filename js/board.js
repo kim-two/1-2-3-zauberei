@@ -1,13 +1,52 @@
 // Spiellogik ohne Grafik: Spielfeld, Treffer finden, Nachfallen, mögliche Züge.
 // Das Feld ist ein 2D-Array feld[zeile][spalte] mit Steinen { id, art }.
+// Besondere Eigenschaften eines Steins:
+//   spezial: "stab"  – Zauberstab
+//   schutz, gefangen – Ranken/Steinhülle (Aufgaben-Modus)
+//   gesperrt         – vom Drachen gesperrt: nimmt an nichts teil und bleibt, wo er ist
 
 let naechsteId = 1;
+
+// Schwierigkeit: Wie viele gleiche Steine in einer Reihe lösen sich auf? (3 normal, 2 einfach)
+let minLaenge = 3;
+
+// Bei nur 2 gleichen würde fast jede Neufüllung sofort neue Paare bilden und endlose
+// Kettenreaktionen auslösen. Deshalb vermeiden neu gefüllte Steine dann Paare mit ihren Nachbarn.
+let vermeideZufallsPaare = false;
+
+// Größter Faktor, mit dem Kettenreaktionen die Punkte vervielfachen (unbegrenzt = Infinity).
+let maxKettenFaktor = Infinity;
+
+export function setzeMinLaenge(n) {
+  minLaenge = n;
+  vermeideZufallsPaare = n < 3;
+  maxKettenFaktor = n < 3 ? 3 : Infinity;
+}
+
+export function holeMinLaenge() {
+  return minLaenge;
+}
 
 export function neuerStein(arten, zufall = Math.random) {
   return { id: naechsteId++, art: Math.floor(zufall() * arten) };
 }
 
-// Neues Feld ohne fertige Dreierreihen, aber mit mindestens einem möglichen Zug.
+// Stein, der mitspielen darf (vorhanden und nicht gesperrt)
+const aktiv = (stein) => Boolean(stein) && !stein.gesperrt;
+
+// Länge der Reihe gleicher Steine, die direkt links/oberhalb von (z, s) endet (ohne (z, s) selbst).
+function laufLinks(feld, z, s, art) {
+  let k = 0;
+  while (s - 1 - k >= 0 && aktiv(feld[z][s - 1 - k]) && feld[z][s - 1 - k].art === art) k++;
+  return k;
+}
+function laufOben(feld, z, s, art) {
+  let k = 0;
+  while (z - 1 - k >= 0 && aktiv(feld[z - 1 - k][s]) && feld[z - 1 - k][s].art === art) k++;
+  return k;
+}
+
+// Neues Feld ohne fertige Treffer, aber mit mindestens einem möglichen Zug.
 export function erzeugeFeld(groesse, arten, zufall = Math.random) {
   for (;;) {
     const feld = [];
@@ -18,8 +57,8 @@ export function erzeugeFeld(groesse, arten, zufall = Math.random) {
         do {
           stein = neuerStein(arten, zufall);
         } while (
-          (s >= 2 && feld[z][s - 1].art === stein.art && feld[z][s - 2].art === stein.art) ||
-          (z >= 2 && feld[z - 1][s].art === stein.art && feld[z - 2][s].art === stein.art)
+          laufLinks(feld, z, s, stein.art) + 1 >= minLaenge ||
+          laufOben(feld, z, s, stein.art) + 1 >= minLaenge
         );
         feld[z].push(stein);
       }
@@ -28,32 +67,37 @@ export function erzeugeFeld(groesse, arten, zufall = Math.random) {
   }
 }
 
-// Liefert alle Treffer-Gruppen (waagerecht/senkrecht, mind. 3 gleiche).
+// Liefert alle Treffer-Gruppen (waagerecht/senkrecht, mindestens minLaenge gleiche).
+// Gesperrte Steine unterbrechen jede Reihe.
 export function findeTreffer(feld) {
   const n = feld.length;
   const gruppen = [];
-  for (let z = 0; z < n; z++) {
+  const lauf = (zelleBei) => {
     let start = 0;
-    for (let s = 1; s <= n; s++) {
-      if (s < n && feld[z][s] && feld[z][start] && feld[z][s].art === feld[z][start].art) continue;
-      if (s - start >= 3 && feld[z][start]) {
+    for (let i = 1; i <= n; i++) {
+      const a = zelleBei(start);
+      const b = i < n ? zelleBei(i) : null;
+      if (aktiv(a) && aktiv(b) && a.art === b.art) continue;
+      if (aktiv(a) && i - start >= minLaenge) {
         const zellen = [];
-        for (let k = start; k < s; k++) zellen.push([z, k]);
-        gruppen.push({ zellen, art: feld[z][start].art });
+        for (let k = start; k < i; k++) zellen.push(k);
+        gruppen.push({ index: zellen, art: a.art });
       }
-      start = s;
+      start = i;
+    }
+  };
+  for (let z = 0; z < n; z++) {
+    const vorher = gruppen.length;
+    lauf((k) => feld[z][k]);
+    for (let g = vorher; g < gruppen.length; g++) {
+      gruppen[g] = { zellen: gruppen[g].index.map((k) => [z, k]), art: gruppen[g].art };
     }
   }
   for (let s = 0; s < n; s++) {
-    let start = 0;
-    for (let z = 1; z <= n; z++) {
-      if (z < n && feld[z][s] && feld[start][s] && feld[z][s].art === feld[start][s].art) continue;
-      if (z - start >= 3 && feld[start][s]) {
-        const zellen = [];
-        for (let k = start; k < z; k++) zellen.push([k, s]);
-        gruppen.push({ zellen, art: feld[start][s].art });
-      }
-      start = z;
+    const vorher = gruppen.length;
+    lauf((k) => feld[k][s]);
+    for (let g = vorher; g < gruppen.length; g++) {
+      gruppen[g] = { zellen: gruppen[g].index.map((k) => [k, s]), art: gruppen[g].art };
     }
   }
   return gruppen;
@@ -101,6 +145,7 @@ export function berechneAufloesung(feld, gruppen, bevorzugt = []) {
     schonAusgeloest.add(key([z, s]));
     ausgeloest.push([z, s]);
     for (let k = 0; k < feld[z].length; k++) {
+      if (feld[z][k].gesperrt) continue;
       if (!entfernen.has(key([z, k]))) {
         entfernen.set(key([z, k]), [z, k]);
         warteschlange.push([z, k]);
@@ -114,7 +159,7 @@ export function berechneAufloesung(feld, gruppen, bevorzugt = []) {
     for (const [dz, ds] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
       const nachbar = feld[z + dz]?.[s + ds];
       const k = key([z + dz, s + ds]);
-      if (nachbar?.schutz > 0 && !entfernen.has(k)) nebenan.set(k, [z + dz, s + ds]);
+      if (nachbar?.schutz > 0 && !nachbar.gesperrt && !entfernen.has(k)) nebenan.set(k, [z + dz, s + ds]);
     }
   }
 
@@ -150,6 +195,7 @@ export const BONUS = { 4: 20, 5: 50 };
 export const STAB_BONUS = 50;
 
 export function berechnePunkte(gruppen, aufloesung, kette) {
+  kette = Math.min(kette, maxKettenFaktor);
   const inGruppe = new Set();
   const proGruppe = gruppen.map((g) => {
     g.zellen.forEach((z) => inGruppe.add(z.join(",")));
@@ -222,7 +268,6 @@ export function tausche(feld, [z1, s1], [z2, s2]) {
   feld[z2][s2] = tmp;
 }
 
-// Sucht einen Tausch, der zu einem Treffer führt. Liefert [a, b] oder null.
 // Zauberstab-Paare: Ein gleichfarbiger Nachbar (waagerecht oder senkrecht) reicht,
 // um einen Zauberstab auszulösen. Geprüft werden die übergebenen Zellen.
 export function findeStabPaare(feld, zellen) {
@@ -230,10 +275,10 @@ export function findeStabPaare(feld, zellen) {
   const gesehen = new Set();
   for (const [z, s] of zellen) {
     const stein = feld[z]?.[s];
-    if (!stein) continue;
+    if (!aktiv(stein)) continue;
     for (const [dz, ds] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
       const nachbar = feld[z + dz]?.[s + ds];
-      if (!nachbar || nachbar.art !== stein.art) continue;
+      if (!aktiv(nachbar) || nachbar.art !== stein.art) continue;
       if (stein.spezial !== "stab" && nachbar.spezial !== "stab") continue;
       const zellenPaar = [[z, s], [z + dz, s + ds]];
       const schluessel = zellenPaar.map((x) => x.join(",")).sort().join("|");
@@ -245,16 +290,25 @@ export function findeStabPaare(feld, zellen) {
   return paare;
 }
 
-// Alle Treffer: normale Dreierreihen plus jeder Zauberstab, der neben einem gleichfarbigen Stein liegt.
-// Gilt nach einem Zug genauso wie bei Kettenreaktionen.
+// Alle Treffer: normale Reihen plus jeder Zauberstab, der neben einem gleichfarbigen Stein liegt.
+// Gilt nach einem Zug genauso wie bei Kettenreaktionen. Ein Stab-Paar, das schon Teil einer
+// normalen Reihe ist, wird nicht doppelt gezählt.
 export function findeAlleTreffer(feld) {
   const staebe = [];
   feld.forEach((zeile, z) => zeile.forEach((stein, s) => {
     if (stein?.spezial === "stab") staebe.push([z, s]);
   }));
-  return [...findeTreffer(feld), ...findeStabPaare(feld, staebe)];
+  const gruppen = findeTreffer(feld);
+  const schluessel = (zelle) => zelle.join(",");
+  const paare = findeStabPaare(feld, staebe).filter((paar) => !gruppen.some((g) => {
+    const ks = new Set(g.zellen.map(schluessel));
+    return paar.zellen.every((zelle) => ks.has(schluessel(zelle)));
+  }));
+  return [...gruppen, ...paare];
 }
 
+// Sucht einen Tausch, der zu einem Treffer führt. Liefert [a, b] oder null.
+// Gesperrte Steine lassen sich nicht tauschen.
 export function findeMoeglichenZug(feld) {
   const n = feld.length;
   for (let z = 0; z < n; z++) {
@@ -262,6 +316,7 @@ export function findeMoeglichenZug(feld) {
       for (const [dz, ds] of [[0, 1], [1, 0]]) {
         const z2 = z + dz, s2 = s + ds;
         if (z2 >= n || s2 >= n) continue;
+        if (feld[z][s].gesperrt || feld[z2][s2].gesperrt) continue;
         tausche(feld, [z, s], [z2, s2]);
         const treffer = findeAlleTreffer(feld).length > 0;
         tausche(feld, [z, s], [z2, s2]);
@@ -274,38 +329,63 @@ export function findeMoeglichenZug(feld) {
 
 // Entfernt Steine, lässt die übrigen nach unten fallen und füllt oben auf.
 // Neue Steine bekommen startZeile (< 0), damit sie von oben hereinfallen können.
+// Gesperrte Steine bleiben an ihrem Platz; die übrigen Steine einer Spalte fließen durch die
+// freien Zellen darunter, als gäbe es die gesperrten Zellen nicht.
 export function entferneUndFuelle(feld, zellen, arten, zufall = Math.random) {
   const n = feld.length;
   for (const [z, s] of zellen) feld[z][s] = null;
   for (let s = 0; s < n; s++) {
-    const bleibende = [];
-    for (let z = n - 1; z >= 0; z--) if (feld[z][s]) bleibende.push(feld[z][s]);
-    const fehlend = n - bleibende.length;
-    for (let z = n - 1, i = 0; z >= 0; z--, i++) {
+    const frei = [];                    // freie Zeilen, von unten nach oben
+    const bleibende = [];               // Steine, die nachrutschen, von unten nach oben
+    for (let z = n - 1; z >= 0; z--) {
+      if (feld[z][s]?.gesperrt) continue;
+      frei.push(z);
+      if (feld[z][s]) bleibende.push(feld[z][s]);
+    }
+    const fehlend = frei.length - bleibende.length;
+    frei.forEach((z, i) => {
       if (i < bleibende.length) {
         feld[z][s] = bleibende[i];
       } else {
-        const stein = neuerStein(arten, zufall);
-        stein.startZeile = z - fehlend;
+        const stein = { id: naechsteId++, art: -1, startZeile: z - fehlend };
         feld[z][s] = stein;
       }
+    });
+  }
+  // Arten der neuen Steine würfeln (zeilenweise, damit sich neue Steine untereinander abstimmen)
+  for (let z = 0; z < n; z++) {
+    for (let s = 0; s < n; s++) {
+      const stein = feld[z][s];
+      if (stein.art !== -1) continue;
+      const verboten = new Set();
+      if (vermeideZufallsPaare) {
+        for (const [dz, ds] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+          const nb = feld[z + dz]?.[s + ds];
+          if (aktiv(nb) && nb.art >= 0) verboten.add(nb.art);
+        }
+      }
+      const erlaubt = [];
+      for (let a = 0; a < arten; a++) if (!verboten.has(a)) erlaubt.push(a);
+      const wahl = erlaubt.length ? erlaubt : Array.from({ length: arten }, (_, a) => a);
+      stein.art = wahl[Math.floor(zufall() * wahl.length)];
     }
   }
 }
 
 // Mischt die vorhandenen Steine neu, bis es keine fertigen Treffer (auch keine Zauberstab-Paare)
-// und mindestens einen Zug gibt. Jeder Stein wird so gesetzt, dass er mit den bereits gesetzten
-// Nachbarn links und oben nichts auslöst.
+// und mindestens einen Zug gibt. Gesperrte Steine bleiben liegen. Jeder Stein wird so gesetzt,
+// dass er mit den bereits gesetzten Nachbarn links und oben nichts auslöst.
 export function mische(feld, zufall = Math.random) {
   const n = feld.length;
-  const alle = feld.flat();
+  const frei = [];                      // Zellen, die mitgemischt werden (zeilenweise)
+  for (let z = 0; z < n; z++) for (let s = 0; s < n; s++) if (!feld[z][s].gesperrt) frei.push([z, s]);
+  const alle = frei.map(([z, s]) => feld[z][s]);
   const passt = (neu, z, s, stein) => {
-    const links = s > 0 ? neu[z][s - 1] : null;
-    const oben = z > 0 ? neu[z - 1][s] : null;
-    if (s >= 2 && links.art === stein.art && neu[z][s - 2].art === stein.art) return false;
-    if (z >= 2 && oben.art === stein.art && neu[z - 2][s].art === stein.art) return false;
-    for (const nb of [links, oben]) {
-      if (nb && nb.art === stein.art && (nb.spezial === "stab" || stein.spezial === "stab")) return false;
+    if (laufLinks(neu, z, s, stein.art) + 1 >= minLaenge) return false;
+    if (laufOben(neu, z, s, stein.art) + 1 >= minLaenge) return false;
+    for (const [dz, ds] of [[0, -1], [-1, 0]]) {
+      const nb = neu[z + dz]?.[s + ds];
+      if (aktiv(nb) && nb.art === stein.art && (nb.spezial === "stab" || stein.spezial === "stab")) return false;
     }
     return true;
   };
@@ -315,14 +395,13 @@ export function mische(feld, zufall = Math.random) {
       const j = Math.floor(zufall() * (i + 1));
       [vorrat[i], vorrat[j]] = [vorrat[j], vorrat[i]];
     }
-    const neu = Array.from({ length: n }, () => []);
+    // neu: Kopie des Feldes mit den festen (gesperrten) Steinen schon an ihrem Platz
+    const neu = feld.map((zeile) => zeile.map((stein) => (stein.gesperrt ? stein : null)));
     let ok = true;
-    for (let z = 0; z < n && ok; z++) {
-      for (let s = 0; s < n; s++) {
-        const i = vorrat.findIndex((stein) => passt(neu, z, s, stein));
-        if (i < 0) { ok = false; break; }
-        neu[z][s] = vorrat.splice(i, 1)[0];
-      }
+    for (const [z, s] of frei) {
+      const i = vorrat.findIndex((stein) => passt(neu, z, s, stein));
+      if (i < 0) { ok = false; break; }
+      neu[z][s] = vorrat.splice(i, 1)[0];
     }
     if (!ok) continue;
     for (let z = 0; z < n; z++) for (let s = 0; s < n; s++) feld[z][s] = neu[z][s];

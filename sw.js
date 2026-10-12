@@ -14,6 +14,7 @@ const DATEIEN = [
   "js/board.js",
   "js/steine.js",
   "js/aufgaben.js",
+  "js/schwierigkeit.js",
   "js/figuren.js",
   "manifest.webmanifest",
   "icons/icon-192.png",

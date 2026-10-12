@@ -25,6 +25,24 @@ export const AUFGABEN = [
   { titel: "Große Zauberprobe",    zuege: 22, ranken: 6, huellen: 4, ziele: [{ typ: "befreien", anzahl: 10 }, { typ: "sammeln", art: 5, anzahl: 15 }] },
 ];
 
+// Aufgabe für eine Schwierigkeitsstufe: Ziele und gefangene Steine werden mit dem
+// zielFaktor der Stufe vergrößert (Stufen ohne zielFaktor behalten die Aufgabe unverändert).
+export function aufgabeFuerStufe(aufgabe, stufe) {
+  const faktor = stufe?.zielFaktor;
+  if (!faktor) return aufgabe;
+  const skaliere = (n, f) => Math.max(1, Math.round(n * f));
+  const angepasst = {
+    ...aufgabe,
+    ranken: aufgabe.ranken ? skaliere(aufgabe.ranken, faktor.befreien ?? 1) : undefined,
+    huellen: aufgabe.huellen ? skaliere(aufgabe.huellen, faktor.befreien ?? 1) : undefined,
+    ziele: aufgabe.ziele.map((ziel) => ({ ...ziel, anzahl: skaliere(ziel.anzahl, faktor[ziel.typ] ?? 1) })),
+  };
+  // "Befreie N Steine" soll genau zu den gefangenen Steinen passen
+  const gefangen = (angepasst.ranken || 0) + (angepasst.huellen || 0);
+  for (const ziel of angepasst.ziele) if (ziel.typ === "befreien") ziel.anzahl = gefangen;
+  return angepasst;
+}
+
 const MEHRZAHL = ["Kristalle", "Sterne", "Blätter", "Tropfen", "Blumen", "Einhorn-Hörner"];
 
 export function zielText(ziel) {
