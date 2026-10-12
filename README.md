@@ -49,6 +49,23 @@ eine Aufgabe wird freigeschaltet, wenn die vorherige geschafft ist (Fortschritt 
 | 9 | Steinzauber | 6 Steine aus Steinhüllen befreien | 18 |
 | 10 | Große Zauberprobe | 10 Steine befreien + 15 Einhorn-Hörner | 22 |
 
+## Schwierigkeit
+
+Im Startmenü wählt man die Figur; sie gilt für Endlos- und Aufgaben-Modus. Rekord und Aufgaben-Fortschritt werden je Stufe gespeichert.
+
+| Stufe | Feld | Regel |
+|-------|------|-------|
+| **Die junge Fee** (leicht) | 6×6 | Schon 2 gleiche Steine lösen sich auf. Ziele der Aufgaben sind größer (Faktoren in `js/schwierigkeit.js`), Kettenreaktionen werden gedeckelt |
+| **Die flinke Entdeckerin** (normal) | 8×8 | 3 gleiche Steine, wie bisher |
+| **Die mutige Piratin** (schwer) | 8×8 | Wie die Entdeckerin, in den Aufgaben treibt der Zahlendieb Drache sein Unwesen |
+
+### Zahlendieb Drache (nur Piratin, nur Aufgaben-Modus)
+
+- Taucht nach 4–8 Zügen auf (danach nach 5–9), nicht in den letzten 2 Zügen, und sperrt eine zufällige Reihe: gesperrte Steine lassen sich weder kombinieren noch verschieben
+- Rechenaufgabe: Multiplikation 5×5 bis 20×20 (Ergebnis 25–400) oder Subtraktion im Zahlenraum 50–200; Freitext-Eingabe über einen eigenen Ziffernblock (Tastatur geht auch)
+- 3 Versuche. Danach wird eine weitere Reihe gesperrt (höchstens Feldgröße − 3) und es gibt eine neue Aufgabe. Gelöst: alle gesperrten Reihen werden frei
+- „Später“ erlaubt, erst weiterzuspielen; oben zeigt eine Leiste die offene Aufgabe (antippen zum Rechnen). Gibt es wegen der Sperren keinen Zug mehr, muss gerechnet werden
+
 ## Aufbau
 
 | Datei / Ordner          | Zweck                                                        |
@@ -59,7 +76,9 @@ eine Aufgabe wird freigeschaltet, wenn die vorherige geschafft ist (Fortschritt 
 | `js/board.js`           | Spielregeln: Feld, Treffer, Nachfallen, mögliche Züge        |
 | `js/steine.js`          | Spielsteine, Zauberstab, Ranken und Steinhülle als SVG       |
 | `js/aufgaben.js`        | Liste der Aufgaben, Ziele und Aufgaben-Spielfeld             |
-| `js/figuren.js`         | Einhorn und Fee für die Rückmeldung                          |
+| `js/figuren.js`         | Einhorn, Fee, Drache und die Köpfe der Schwierigkeitsstufen  |
+| `js/schwierigkeit.js`   | Die drei Stufen (Feldgröße, Regel, Ziel-Faktoren)            |
+| `js/herausforderungen.js` | Rechenaufgaben und Takt des Drachen                        |
 | `sw.js`                 | Service Worker – speichert das Spiel für den Offline-Betrieb |
 | `manifest.webmanifest`  | App-Name, Icon und Darstellung bei Installation              |
 | `icons/`                | App-Icons                                                    |

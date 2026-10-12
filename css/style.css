@@ -892,3 +892,86 @@ body {
   box-shadow: 0 0 0 3px rgba(169, 112, 255, 0.3);
 }
 .stufe-text { margin: 0; min-height: 2.6em; font-size: 0.95rem; color: #5a3a8c; text-align: center; }
+
+.stufen-bild { width: 44px; height: 44px; margin-bottom: 2px; }
+
+/* ---------- Zahlendieb Drache ---------- */
+.drache-leiste {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 6px auto 0;
+  padding: 5px 16px;
+  border: 2px solid #d9c8f5;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #5a3a8c;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  -webkit-tap-highlight-color: transparent;
+}
+.drache-leiste.wach {
+  border-color: #8a5be0;
+  background: #f1e6ff;
+  animation: drache-puls 1.2s ease-in-out infinite;
+  cursor: pointer;
+}
+@keyframes drache-puls {
+  50% { box-shadow: 0 0 0 5px rgba(138, 91, 224, 0.35); }
+}
+
+.stein.gesperrt .bild { filter: grayscale(0.75) brightness(0.8); opacity: 0.85; }
+.stein.gesperrt .schutz { opacity: 0.6; }
+.stein .schloss {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 3;
+}
+.stein .schloss svg { width: 62%; height: 62%; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.35)); }
+
+.rechnen-karte { display: flex; flex-direction: column; align-items: center; gap: 10px; width: min(92vw, 440px); }
+.rechnen-kopf { display: flex; align-items: center; gap: 12px; }
+.rechnen-figur { width: 96px; height: 96px; flex: none; }
+.rechnen-figur svg { width: 100%; height: 100%; }
+.rechnen-aufgabe { font-size: 2.1rem; font-weight: 800; color: #5a3a8c; white-space: nowrap; }
+.rechnen-eingabe {
+  min-width: 11rem;
+  padding: 6px 20px;
+  border: 3px solid #a970ff;
+  border-radius: 16px;
+  background: #fff;
+  font-size: 2.2rem;
+  font-weight: 800;
+  text-align: center;
+  color: #3a1f6e;
+}
+.rechnen-eingabe.leer { color: #c5b4e3; }
+.rechnen-eingabe.falsch { animation: wackeln-seite 0.4s; border-color: #e0334a; }
+@keyframes wackeln-seite {
+  20% { transform: translateX(-8px); } 40% { transform: translateX(8px); }
+  60% { transform: translateX(-5px); } 80% { transform: translateX(5px); }
+}
+.herzen { display: flex; gap: 6px; font-size: 1.7rem; color: #ff4f8b; }
+.herz.weg { color: #e5dcef; }
+.rueckmeldung { min-height: 1.4em; margin: 0; font-weight: 700; color: #b03a6a; text-align: center; }
+.ziffern { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; }
+.taste {
+  padding: 12px 0;
+  border: 0;
+  border-radius: 14px;
+  background: #efe5ff;
+  box-shadow: 0 4px 0 #cdb8f0;
+  color: #4a2a8c;
+  font: inherit;
+  font-size: 1.6rem;
+  font-weight: 800;
+  -webkit-tap-highlight-color: transparent;
+}
+.taste:active { transform: translateY(3px); box-shadow: 0 1px 0 #cdb8f0; }
+.taste-ok { background: #ff6fae; box-shadow: 0 4px 0 #c43a7e; color: #fff; }

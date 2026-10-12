@@ -149,6 +149,16 @@ export const SVG_DEFS = `
       <path d="M10 10 L22 10" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".8"/>
     </symbol>
 
+    <!-- Schloss + Kette: Stein ist vom Drachen gesperrt -->
+    <symbol id="schloss" viewBox="0 0 100 100">
+      <path d="M32 46 V34 A18 18 0 0 1 68 34 V46" fill="none" stroke="#7d6f93" stroke-width="9" stroke-linecap="round"/>
+      <path d="M32 46 V34 A18 18 0 0 1 68 34 V46" fill="none" stroke="#d9d0e8" stroke-width="3.5" stroke-linecap="round"/>
+      <rect x="22" y="44" width="56" height="42" rx="9" fill="#ffc93c" stroke="#b07a00" stroke-width="4"/>
+      <circle cx="50" cy="62" r="6" fill="#7a4a00"/>
+      <rect x="47" y="64" width="6" height="12" rx="3" fill="#7a4a00"/>
+      <path d="M28 50 H44" stroke="#fff" stroke-width="4" stroke-linecap="round" opacity=".7"/>
+    </symbol>
+
     <!-- Funkel-Stern für Effekte -->
     <symbol id="funkel" viewBox="0 0 20 20">
       <path d="M10 0 Q11.5 8.5 20 10 Q11.5 11.5 10 20 Q8.5 11.5 0 10 Q8.5 8.5 10 0 Z"/>

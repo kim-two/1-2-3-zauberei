@@ -104,3 +104,70 @@ export const FEE_SVG = `
     <path d="M196 120 Q197.5 127 204 128 Q197.5 129 196 136 Q194.5 129 188 128 Q194.5 127 196 120 Z"/>
   </g>
 </svg>`;
+
+// Der freche Zahlendieb Drache (Spezialherausforderung der mutigen Piratin)
+export const DRACHE_SVG = `
+<svg viewBox="0 0 220 220" class="figur drache" role="img" aria-label="Zahlendieb Drache">
+  <!-- Flügel -->
+  <path d="M40 90 Q8 50 24 20 Q50 40 66 72 Z" fill="#8a5be0" stroke="#5a2fb0" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M180 90 Q212 50 196 20 Q170 40 154 72 Z" fill="#8a5be0" stroke="#5a2fb0" stroke-width="4" stroke-linejoin="round"/>
+  <!-- Rückenzacken -->
+  <g fill="#ffb84d" stroke="#d98a1c" stroke-width="3" stroke-linejoin="round">
+    <path d="M90 30 L100 8 L112 32 Z"/><path d="M108 26 L122 4 L132 30 Z"/>
+  </g>
+  <!-- Hörner -->
+  <path d="M62 54 Q50 24 70 10 Q76 34 86 48 Z" fill="#fff1a8" stroke="#d98a1c" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M158 54 Q170 24 150 10 Q144 34 134 48 Z" fill="#fff1a8" stroke="#d98a1c" stroke-width="3.5" stroke-linejoin="round"/>
+  <!-- Kopf -->
+  <ellipse cx="110" cy="112" rx="68" ry="62" fill="#5fd07a" stroke="#2f8f48" stroke-width="5"/>
+  <ellipse cx="110" cy="138" rx="46" ry="34" fill="#a8ec9c" stroke="#2f8f48" stroke-width="4"/>
+  <!-- Nüstern -->
+  <ellipse cx="96" cy="128" rx="5" ry="7" fill="#2f8f48"/>
+  <ellipse cx="124" cy="128" rx="5" ry="7" fill="#2f8f48"/>
+  <!-- Augen: schlau und frech -->
+  <g>
+    <ellipse cx="80" cy="96" rx="16" ry="18" fill="#fff" stroke="#2f8f48" stroke-width="3"/>
+    <ellipse cx="140" cy="96" rx="16" ry="18" fill="#fff" stroke="#2f8f48" stroke-width="3"/>
+    <circle cx="86" cy="100" r="8" fill="#3a1f6e"/><circle cx="146" cy="100" r="8" fill="#3a1f6e"/>
+    <circle cx="89" cy="96" r="3" fill="#fff"/><circle cx="149" cy="96" r="3" fill="#fff"/>
+    <path d="M62 78 L98 88" stroke="#2f8f48" stroke-width="6" stroke-linecap="round"/>
+    <path d="M158 78 L122 88" stroke="#2f8f48" stroke-width="6" stroke-linecap="round"/>
+  </g>
+  <!-- Freches Grinsen mit Zähnchen -->
+  <path d="M74 150 Q110 182 146 148" fill="#fff" stroke="#2f8f48" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M88 160 L94 170 L100 163 M120 163 L126 170 L132 160" fill="none" stroke="#2f8f48" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- Gestohlene Zahlen -->
+  <g font-family="sans-serif" font-weight="800" fill="#fff" stroke="#5a2fb0" stroke-width="2.5" paint-order="stroke">
+    <text x="12" y="182" font-size="26">7</text>
+    <text x="178" y="190" font-size="30">×</text>
+    <text x="190" y="150" font-size="22">42</text>
+  </g>
+</svg>`;
+
+// Kleine Köpfe für die Schwierigkeitswahl im Menü
+const GESICHT = (haar, extra = "", unten = "") => `
+<svg viewBox="0 0 100 100" class="stufen-bild" aria-hidden="true">
+  ${unten}
+  <circle cx="50" cy="56" r="30" fill="#ffe0c8" stroke="#e0b090" stroke-width="3"/>
+  ${haar}
+  <circle cx="40" cy="58" r="3.5" fill="#4a2a1a"/><circle cx="60" cy="58" r="3.5" fill="#4a2a1a"/>
+  <circle cx="34" cy="66" r="5" fill="#ffb3c4" opacity=".7"/><circle cx="66" cy="66" r="5" fill="#ffb3c4" opacity=".7"/>
+  <path d="M42 68 Q50 75 58 68" fill="none" stroke="#4a2a1a" stroke-width="3" stroke-linecap="round"/>
+  ${extra}
+</svg>`;
+
+export const STUFEN_BILD = {
+  // Junge Fee: blonde Zöpfe, Krönchen, Flügel
+  fee: GESICHT(
+    `<path d="M20 56 Q20 24 50 22 Q80 24 80 56 Q70 40 50 40 Q30 40 20 56Z" fill="#ffd36e"/><circle cx="20" cy="70" r="9" fill="#ffd36e"/><circle cx="80" cy="70" r="9" fill="#ffd36e"/>`,
+    `<path d="M36 26 L40 14 L45 22 L50 10 L55 22 L60 14 L64 26 Z" fill="#ffe14d" stroke="#d99a00" stroke-width="2" stroke-linejoin="round"/>`,
+    `<path d="M20 60 Q0 30 14 14 Q30 28 34 54Z" fill="#cfeaff" stroke="#8cc4f0" stroke-width="2.5"/><path d="M80 60 Q100 30 86 14 Q70 28 66 54Z" fill="#cfeaff" stroke="#8cc4f0" stroke-width="2.5"/>`),
+  // Flinke Entdeckerin: braune Haare, Hut
+  entdeckerin: GESICHT(
+    `<path d="M20 62 Q18 28 50 26 Q82 28 80 62 Q72 44 50 44 Q28 44 20 62Z" fill="#8a5232"/>`,
+    `<ellipse cx="50" cy="32" rx="38" ry="8" fill="#d9a35a" stroke="#a8742c" stroke-width="2.5"/><path d="M30 32 Q32 8 50 8 Q68 8 70 32Z" fill="#e8b96c" stroke="#a8742c" stroke-width="2.5"/><rect x="31" y="24" width="38" height="6" fill="#c0392b"/>`),
+  // Mutige Piratin: rotes Kopftuch, Augenklappe, Ohrring
+  piratin: GESICHT(
+    `<path d="M20 60 Q16 30 50 28 Q84 30 80 60 Q70 46 50 46 Q30 46 20 60Z" fill="#5a2a1a"/>`,
+    `<path d="M18 44 Q22 18 50 16 Q78 18 82 44 Q50 34 18 44Z" fill="#e0334a" stroke="#a8182c" stroke-width="2.5"/><circle cx="40" cy="28" r="2.5" fill="#fff"/><circle cx="58" cy="24" r="2.5" fill="#fff"/><circle cx="70" cy="34" r="2.5" fill="#fff"/><circle cx="60" cy="58" r="7" fill="#2a1a2a"/><path d="M60 51 L84 34" stroke="#2a1a2a" stroke-width="2"/><circle cx="78" cy="74" r="4" fill="none" stroke="#ffc93c" stroke-width="2.5"/>`),
+};

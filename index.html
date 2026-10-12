@@ -140,6 +140,11 @@
           <span id="zuege" class="wert">0</span>
         </div>
       </div>
+
+      <!-- Mutige Piratin: Zustand des Drachen -->
+      <button id="drache-leiste" type="button" class="drache-leiste" hidden>
+        <span class="drache-icon" aria-hidden="true">🐲</span><span id="drache-text"></span>
+      </button>
     </header>
 
     <section id="spielfeld" aria-label="Spielfeld">
@@ -170,6 +175,21 @@
         <span class="knopf-icon">★</span> Aufgaben
       </button>
       <p class="menue-info">Rekord im Endlos-Spiel (diese Stufe): <b id="menue-rekord">0</b></p>
+    </div>
+  </section>
+
+  <!-- Drache: Rechenaufgabe -->
+  <section id="rechnen" class="bildschirm" hidden>
+    <div class="karte rechnen-karte">
+      <div class="rechnen-kopf">
+        <div id="rechnen-figur" class="rechnen-figur"></div>
+        <div id="rechnen-aufgabe" class="rechnen-aufgabe"></div>
+      </div>
+      <div id="rechnen-eingabe" class="rechnen-eingabe leer" aria-live="polite"></div>
+      <div id="rechnen-herzen" class="herzen" aria-label="Versuche"></div>
+      <p id="rechnen-rueckmeldung" class="rueckmeldung" aria-live="polite"></p>
+      <div id="ziffern" class="ziffern"></div>
+      <button id="rechnen-spaeter" type="button" class="knopf knopf-zart">Später rechnen</button>
     </div>
   </section>
 

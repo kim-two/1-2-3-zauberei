@@ -1,6 +1,6 @@
 // Einstiegspunkt des Spiels: Darstellung, Touch-Steuerung und Effekte.
 // Die Versionsnummer muss mit CACHE_VERSION in sw.js übereinstimmen.
-const VERSION = "0.5.0";
+const VERSION = "0.6.0";
 
 import {
   erzeugeFeld, setzeMinLaenge, findeMoeglichenZug, sindNachbarn, tausche, mische,
@@ -11,7 +11,8 @@ import { SCHWIERIGKEITEN, REIHENFOLGE, STANDARD, schluessel } from "./schwierigk
 import {
   AUFGABEN, aufgabeFuerStufe, zielText, zielStand, istGeschafft, leererStand, addiereStand, erzeugeAufgabenFeld,
 } from "./aufgaben.js";
-import { EINHORN_SVG, FEE_SVG } from "./figuren.js";
+import { EINHORN_SVG, FEE_SVG, DRACHE_SVG, STUFEN_BILD } from "./figuren.js";
+import { erzeugeRechenaufgabe, leseAntwort, zuegeBisDrache } from "./herausforderungen.js";
 
 // ---------- Einstellungen ----------
 let GROESSE = 8;                     // Kantenlänge – hängt von der Schwierigkeit ab (setzeStufe)
@@ -358,10 +359,10 @@ async function mischeNeu() {
     }
     void steineEbene.offsetHeight;
     for (const el of elemente.values()) el.classList.remove("ohne-animation");
-  } else {
+  } else if (!gesperrteZeilen().length) {
     feld = erzeugeFeld(GROESSE, ARTEN);
     baueFeldNeu();
-  }
+  }   // mit gesperrten Reihen bleibt das Feld, wie es ist – der Drache-Dialog greift dann ein
   await warte(320);
   for (const el of elemente.values()) el.classList.remove("mischen");
   aktualisiereLeuchten();
@@ -378,7 +379,23 @@ function baueFeldNeu() {
   }
 }
 
+// Vom Drachen gesperrte Steine wackeln nur kurz – sie lassen sich nicht benutzen.
+function wackleGesperrt(...zellen) {
+  for (const zelle of zellen) {
+    const el = elementBei(zelle);
+    el.classList.remove("wackeln");
+    void el.offsetWidth;
+    el.classList.add("wackeln");
+    setTimeout(() => el.classList.remove("wackeln"), 400);
+  }
+}
+
 async function versucheTausch(a, b) {
+  if (feld[a[0]][a[1]].gesperrt || feld[b[0]][b[1]].gesperrt) {
+    waehleAb();
+    wackleGesperrt(...[a, b].filter(([z, s]) => feld[z][s].gesperrt));
+    return;
+  }
   beschaeftigt = true;
   stoppeTipp();
   waehleAb();
@@ -408,6 +425,7 @@ async function versucheTausch(a, b) {
     }
     await loeseTrefferAuf([b, a]);   // b: dorthin wurde der Stein gezogen
     if (modus === "aufgabe" && pruefeAufgabenEnde()) return;
+    if (await dracheNachZug()) return;   // Drache hat den Spielfluss übernommen (Dialog offen)
   }
 
   beschaeftigt = false;
@@ -455,6 +473,11 @@ steineEbene.addEventListener("pointerdown", (event) => {
   if (beschaeftigt || geste || !spielAktiv) return;
   const zelle = zelleAus(event);
   if (!zelle) return;
+  if (feld[zelle[0]][zelle[1]].gesperrt) {
+    waehleAb();
+    wackleGesperrt(zelle);
+    return;
+  }
   stoppeTipp();
   steineEbene.setPointerCapture?.(event.pointerId);
   geste = { id: event.pointerId, x: event.clientX, y: event.clientY, zelle, gewischt: false };
@@ -518,6 +541,7 @@ async function baueSpielfeld(neuesFeld) {
 
 async function starteEndlos() {
   modus = "endlos";
+  setzeDracheZurueck();
   aufgabe = null;
   punkte = 0;
   zeigePunkte();
@@ -534,6 +558,7 @@ async function starteAufgabe(nr) {
   modus = "aufgabe";
   aufgabeNr = nr;
   aufgabe = aufgabeFuerStufe(AUFGABEN[nr], stufe);
+  setzeDracheZurueck();
   stand = leererStand();
   zuegeUebrig = aufgabe.zuege;
   punkte = 0;
@@ -616,7 +641,7 @@ function speichereGeschafft(nr) {
 }
 
 // ---------- Bildschirme: Menü, Aufgabenwahl, Dialoge ----------
-const bildschirme = ["menue", "aufgabenwahl", "dialog"].map((id) => document.getElementById(id));
+const bildschirme = ["menue", "aufgabenwahl", "dialog", "rechnen"].map((id) => document.getElementById(id));
 
 function zeigeBildschirm(id) {
   stoppeTipp();
@@ -657,7 +682,7 @@ function zeigeStufenwahl() {
     knopf.className = "stufe" + (s.id === stufe.id ? " gewaehlt" : "");
     knopf.setAttribute("aria-pressed", s.id === stufe.id);
     knopf.dataset.stufe = s.id;
-    knopf.innerHTML = `<span class="stufe-kurz">${s.kurz}</span><span class="stufe-name">${s.name}</span>`;
+    knopf.innerHTML = `${STUFEN_BILD[s.id]}<span class="stufe-kurz">${s.kurz}</span><span class="stufe-name">${s.name}</span>`;
     knopf.addEventListener("click", () => waehleStufe(s.id));
     reihe.append(knopf);
   }
@@ -675,6 +700,7 @@ async function waehleStufe(id) {
 
 function zeigeMenue() {
   spielAktiv = false;
+  setzeDracheZurueck();
   zeigeStufenwahl();
   zeigeBildschirm("menue");
 }
@@ -731,7 +757,7 @@ function zeigeAufgabeVor() {
     text: `${zielListeHtml(false)}${hinweis}<p>Du hast <b>${aufgabe.zuege} Züge</b>.</p>`,
     knoepfe: [
       { text: "← Zurück", klasse: "knopf-zart", aktion: zeigeAufgabenwahl },
-      { text: "Los geht's!", aktion: () => { schliesseBildschirme(); spielAktiv = true; starteTipp(); } },
+      { text: "Los geht's!", aktion: () => { schliesseBildschirme(); spielAktiv = true; aktualisiereDracheLeiste(); starteTipp(); } },
     ],
   });
 }
@@ -770,6 +796,227 @@ function zeigeMisserfolg() {
   });
 }
 
+// ---------- Spezialherausforderung: Zahlendieb Drache (nur mutige Piratin, nur Aufgaben) ----------
+const drache = { zuegeBis: 0, aufgabe: null, versuche: 3, eingabe: "", erzwungen: false };
+const drachenLeiste = document.getElementById("drache-leiste");
+const drachenSpiel = () => modus === "aufgabe" && stufe.drache;
+
+function gesperrteZeilen() {
+  return feld.map((reihe, z) => (reihe.some((st) => st.gesperrt) ? z : -1)).filter((z) => z >= 0);
+}
+
+function setzeDracheZurueck() {
+  drache.aufgabe = null;
+  drache.versuche = 3;
+  drache.eingabe = "";
+  drache.erzwungen = false;
+  drache.zuegeBis = drachenSpiel() ? zuegeBisDrache(true) : 0;
+  aktualisiereDracheLeiste();
+}
+
+function aktualisiereDracheLeiste() {
+  drachenLeiste.hidden = !drachenSpiel() || !spielAktiv;
+  if (drachenLeiste.hidden) return;
+  drachenLeiste.classList.toggle("wach", Boolean(drache.aufgabe));
+  document.getElementById("drache-text").textContent = drache.aufgabe
+    ? `${drache.aufgabe.text} = ?   – tippen zum Rechnen`
+    : "Der Drache schläft … noch.";
+}
+
+function zeigeSperre(el, gesperrt) {
+  el.classList.toggle("gesperrt", gesperrt);
+  const vorhanden = el.querySelector(".schloss");
+  if (gesperrt && !vorhanden) {
+    el.insertAdjacentHTML("beforeend", '<div class="schloss"><svg viewBox="0 0 100 100"><use href="#schloss"/></svg></div>');
+  } else if (!gesperrt) {
+    vorhanden?.remove();
+  }
+}
+
+// Sperrt eine zufällige freie Reihe. false, wenn keine mehr frei ist.
+function sperreReihe() {
+  const frei = [];
+  for (let z = 0; z < GROESSE; z++) if (!feld[z].some((st) => st.gesperrt)) frei.push(z);
+  if (!frei.length) return false;
+  const z = frei[Math.floor(Math.random() * frei.length)];
+  feld[z].forEach((stein, s) => {
+    stein.gesperrt = true;
+    zeigeSperre(elementBei([z, s]), true);
+    const { links, oben } = mitte([[z, s]]);
+    effekt("ring", links, oben, { "--farbe": "#8a5be0", "--gross": "2" });
+  });
+  gewaehlt = null;
+  return true;
+}
+
+// Nach einem gültigen Zug: Zähler herunterzählen, bei 0 erscheint der Drache. true = Dialog ist offen.
+async function dracheNachZug() {
+  if (!drachenSpiel()) return false;
+  if (drache.aufgabe) {
+    if (await pruefeFestgefahren()) { zeigeRechnen(true); return true; }
+    return false;
+  }
+  drache.zuegeBis--;
+  if (drache.zuegeBis > 0 || zuegeUebrig <= 2) return false;   // kurz vor Schluss lässt der Drache die Spielerin in Ruhe
+  return dracheErscheint();
+}
+
+// Ohne möglichen Zug (wegen gesperrter Reihen): erst mischen; hilft das nicht, muss gerechnet werden.
+async function pruefeFestgefahren() {
+  if (!gesperrteZeilen().length || findeMoeglichenZug(feld)) return false;
+  await mischeNeu();
+  return !findeMoeglichenZug(feld);
+}
+
+async function dracheErscheint() {
+  if (!sperreReihe()) return false;
+  drache.aufgabe = erzeugeRechenaufgabe();
+  drache.versuche = 3;
+  drache.eingabe = "";
+  spielAktiv = false;
+  aktualisiereDracheLeiste();
+  zeigeLob("Hihi!");
+  await warte(700);
+  const erzwungen = await pruefeFestgefahren();
+  const knoepfe = [{ text: "Rechnen", aktion: () => zeigeRechnen(erzwungen) }];
+  if (!erzwungen) knoepfe.unshift({ text: "Später", klasse: "knopf-zart", aktion: setzeSpielFort });
+  zeigeDialog({
+    figur: DRACHE_SVG,
+    titel: "Der freche Zahlendieb Drache!",
+    text: "„Hihi! Ich habe eine Reihe gesperrt. Löse meine Rechenaufgabe – dann bekommst du sie zurück!“",
+    knoepfe,
+  });
+  return true;
+}
+
+function setzeSpielFort() {
+  schliesseBildschirme();
+  spielAktiv = true;
+  aktualisiereDracheLeiste();
+  starteTipp();
+}
+
+// --- Rechen-Fenster mit eigenem Ziffernblock (der iPad-Tastaturdialog würde das Spielfeld verdecken)
+const rechnenFeld = document.getElementById("rechnen-eingabe");
+
+function zeigeRechnen(erzwungen = false) {
+  spielAktiv = false;
+  drache.erzwungen = erzwungen;
+  drache.eingabe = "";
+  document.getElementById("rechnen-spaeter").hidden = erzwungen;
+  document.getElementById("rechnen-figur").innerHTML = DRACHE_SVG;
+  document.getElementById("rechnen-rueckmeldung").textContent = "";
+  zeigeRechenstand();
+  zeigeBildschirm("rechnen");
+}
+
+function zeigeRechenstand() {
+  document.getElementById("rechnen-aufgabe").textContent = `${drache.aufgabe.text} = ?`;
+  rechnenFeld.textContent = drache.eingabe || "…";
+  rechnenFeld.classList.toggle("leer", !drache.eingabe);
+  document.getElementById("rechnen-herzen").innerHTML =
+    [0, 1, 2].map((i) => `<span class="herz${i < drache.versuche ? "" : " weg"}">♥</span>`).join("");
+}
+
+function rechnenOffen() {
+  return !document.getElementById("rechnen").hidden;
+}
+
+function tippeZiffer(ziffer) {
+  if (!rechnenOffen() || drache.eingabe.length >= 4) return;
+  drache.eingabe += ziffer;
+  zeigeRechenstand();
+}
+
+function loescheZiffer() {
+  if (!rechnenOffen()) return;
+  drache.eingabe = drache.eingabe.slice(0, -1);
+  zeigeRechenstand();
+}
+
+async function pruefeAntwort() {
+  if (!rechnenOffen() || beschaeftigt) return;
+  const zahl = leseAntwort(drache.eingabe);
+  if (zahl === null) return;
+  if (zahl === drache.aufgabe.antwort) return dracheGeloest();
+
+  drache.versuche--;
+  const meldung = document.getElementById("rechnen-rueckmeldung");
+  if (drache.versuche > 0) {
+    drache.eingabe = "";
+    zeigeRechenstand();
+    meldung.textContent = drache.versuche === 1 ? "Nicht ganz – letzter Versuch!" : "Nicht ganz – versuch es nochmal!";
+    rechnenFeld.classList.remove("falsch");
+    void rechnenFeld.offsetWidth;
+    rechnenFeld.classList.add("falsch");
+    return;
+  }
+  zeigeRechenstand();
+  meldung.textContent = "Oh nein! Der Drache sperrt noch eine Reihe …";
+  await warte(1300);
+  await dracheSperrtMehr();
+}
+
+async function dracheSperrtMehr() {
+  beschaeftigt = true;
+  schliesseBildschirme();
+  if (gesperrteZeilen().length < GROESSE - 3) sperreReihe();   // immer bleiben ein paar Reihen frei
+  drache.aufgabe = erzeugeRechenaufgabe();
+  drache.versuche = 3;
+  drache.eingabe = "";
+  aktualisiereDracheLeiste();
+  await warte(500);
+  const erzwungen = await pruefeFestgefahren();
+  beschaeftigt = false;
+  if (erzwungen) zeigeRechnen(true);
+  else setzeSpielFort();
+}
+
+async function dracheGeloest() {
+  beschaeftigt = true;
+  schliesseBildschirme();
+  for (const z of gesperrteZeilen()) {
+    feld[z].forEach((stein, s) => {
+      stein.gesperrt = false;
+      zeigeSperre(elementBei([z, s]), false);
+      funkenregen([z, s], "#ffc93c", 6);
+    });
+  }
+  drache.aufgabe = null;
+  drache.zuegeBis = zuegeBisDrache(false);
+  aktualisiereDracheLeiste();
+  zeigeLob("Befreit!");
+  await warte(600);
+  await loeseTrefferAuf();            // freie Steine können sich jetzt zu Reihen fügen
+  if (pruefeAufgabenEnde()) return;
+  beschaeftigt = false;
+  setzeSpielFort();
+}
+
+const ziffernBlock = document.getElementById("ziffern");
+for (const taste of ["1", "2", "3", "4", "5", "6", "7", "8", "9", "⌫", "0", "OK"]) {
+  const knopf = document.createElement("button");
+  knopf.type = "button";
+  knopf.className = "taste" + (taste === "OK" ? " taste-ok" : "");
+  knopf.textContent = taste;
+  knopf.addEventListener("click", () => {
+    if (taste === "⌫") loescheZiffer();
+    else if (taste === "OK") pruefeAntwort();
+    else tippeZiffer(taste);
+  });
+  ziffernBlock.append(knopf);
+}
+document.addEventListener("keydown", (event) => {
+  if (!rechnenOffen()) return;
+  if (/^\d$/.test(event.key)) tippeZiffer(event.key);
+  else if (event.key === "Backspace") loescheZiffer();
+  else if (event.key === "Enter") pruefeAntwort();
+});
+document.getElementById("rechnen-spaeter").addEventListener("click", setzeSpielFort);
+drachenLeiste.addEventListener("click", () => {
+  if (drache.aufgabe && spielAktiv && !beschaeftigt) zeigeRechnen(false);
+});
+
 // ---------- Knöpfe ----------
 function laeuftEinSpiel() {
   return modus === "endlos" ? punkte > 0 : (aufgabe && zuegeUebrig < aufgabe.zuege && spielAktiv);
@@ -805,7 +1052,7 @@ zeigeMenue();
 window.zauberei = {
   get feld() { return feld; }, get beschaeftigt() { return beschaeftigt; }, get punkte() { return punkte; },
   get stand() { return stand; }, get zuege() { return zuegeUebrig; }, get spielAktiv() { return spielAktiv; },
-  starteAufgabe, starteEndlos, setzeStufe,
+  starteAufgabe, starteEndlos, setzeStufe, drache, dracheErscheint, gesperrteZeilen,
   get groesse() { return GROESSE; },
 };
 
