@@ -863,6 +863,10 @@ body {
   70% { transform: scale(1.05) rotate(-2deg); }
 }
 
+/* ---------- Kokosnuss ---------- */
+.mini-kokos { width: 1.4em; height: 1.4em; vertical-align: -0.35em; }
+.stein.kokos .bild { filter: drop-shadow(0 3px 3px rgba(60, 30, 10, 0.35)); }
+
 /* ---------- Schwierigkeit wählen ---------- */
 .stufen {
   display: grid;
@@ -912,6 +916,7 @@ body {
   font-weight: 700;
   -webkit-tap-highlight-color: transparent;
 }
+.drache-leiste[hidden] { display: none; }
 .drache-leiste.wach {
   border-color: #8a5be0;
   background: #f1e6ff;

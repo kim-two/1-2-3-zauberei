@@ -25,7 +25,7 @@ Ein Match-3-Puzzlespiel für den Browser auf Tablets, bereitgestellt über GitHu
 
 ## Aufgaben-Modus
 
-Im Startmenü wählt man zwischen **Endlos spielen** und **Aufgaben**. Es gibt 10 Aufgaben mit begrenzten Zügen;
+Im Startmenü wählt man zwischen **Endlos spielen** und **Aufgaben**. Es gibt 15 Aufgaben mit begrenzten Zügen;
 eine Aufgabe wird freigeschaltet, wenn die vorherige geschafft ist (Fortschritt wird auf dem Gerät gespeichert).
 
 - **Ziel-Typen:** Steine einer Art sammeln, gefangene Steine befreien, Punkte erreichen, Zauberstäbe erzeugen
@@ -48,6 +48,15 @@ eine Aufgabe wird freigeschaltet, wenn die vorherige geschafft ist (Fortschritt 
 | 8 | Kristallhöhle | 25 Kristalle | 22 |
 | 9 | Steinzauber | 6 Steine aus Steinhüllen befreien | 18 |
 | 10 | Große Zauberprobe | 10 Steine befreien + 15 Einhorn-Hörner | 22 |
+| 11 | Kokosstrand | 18 Tropfen (4 Kokosnüsse) | 22 |
+| 12 | Palmen-Oase | 14 Blumen + 14 Kristalle (5 Kokosnüsse) | 24 |
+| 13 | Nussknacker-Magie | 3 Zauberstäbe (5 Kokosnüsse) | 20 |
+| 14 | Kokos im Garten | 6 Steine aus Ranken befreien (4 Kokosnüsse) | 19 |
+| 15 | Die große Kokosernte | 7 Steine befreien + 12 Sterne (6 Kokosnüsse) | 26 |
+
+**Kokosnuss** (ab v0.7.0): Hindernis in den Aufgaben 11–15 (`kokosnuesse` in `js/aufgaben.js`; die Aufgaben 1–10 haben keine).
+Sie nimmt an keiner Reihe teil, lässt sich nicht tauschen (wackelt nur), fällt aber nach unten, wenn darunter Steine verschwinden.
+Nur ein Zauberstab räumt sie ab, wenn ihre Reihe aufgelöst wird. Die junge Fee hat nur halb so viele Kokosnüsse.
 
 ## Schwierigkeit
 

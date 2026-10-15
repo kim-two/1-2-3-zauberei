@@ -3,6 +3,8 @@
 // Besondere Eigenschaften eines Steins:
 //   spezial: "stab"  – Zauberstab
 //   schutz, gefangen – Ranken/Steinhülle (Aufgaben-Modus)
+//   kokos            – Kokosnuss: nimmt an nichts teil, lässt sich nicht tauschen, fällt aber nach unten;
+//                      nur ein Zauberstab-Strahl räumt sie ab
 //   gesperrt         – vom Drachen gesperrt: nimmt an nichts teil und bleibt, wo er ist
 
 let naechsteId = 1;
@@ -31,8 +33,11 @@ export function neuerStein(arten, zufall = Math.random) {
   return { id: naechsteId++, art: Math.floor(zufall() * arten) };
 }
 
+// Läßt sich ein Stein per Tausch verschieben? (nicht: gesperrt, Kokosnuss)
+export const bewegbar = (stein) => !stein.gesperrt && !stein.kokos;
+
 // Stein, der mitspielen darf (vorhanden und nicht gesperrt)
-const aktiv = (stein) => Boolean(stein) && !stein.gesperrt;
+const aktiv = (stein) => Boolean(stein) && !stein.gesperrt && !stein.kokos;
 
 // Länge der Reihe gleicher Steine, die direkt links/oberhalb von (z, s) endet (ohne (z, s) selbst).
 function laufLinks(feld, z, s, art) {
@@ -230,7 +235,7 @@ export function wendeAufloesungAn(feld, aufloesung, arten, zufall = Math.random)
       statistik.befreit++;
     }
   }
-  for (const [z, s] of aufloesung.entfernen) statistik.gesammelt[feld[z][s].art]++;
+  for (const [z, s] of aufloesung.entfernen) if (!feld[z][s].kokos) statistik.gesammelt[feld[z][s].art]++;
   for (const { zelle: [z, s], art } of aufloesung.neueStaebe) {
     feld[z][s].art = art;
     feld[z][s].spezial = "stab";
@@ -316,7 +321,7 @@ export function findeMoeglichenZug(feld) {
       for (const [dz, ds] of [[0, 1], [1, 0]]) {
         const z2 = z + dz, s2 = s + ds;
         if (z2 >= n || s2 >= n) continue;
-        if (feld[z][s].gesperrt || feld[z2][s2].gesperrt) continue;
+        if (!bewegbar(feld[z][s]) || !bewegbar(feld[z2][s2])) continue;
         tausche(feld, [z, s], [z2, s2]);
         const treffer = findeAlleTreffer(feld).length > 0;
         tausche(feld, [z, s], [z2, s2]);
@@ -378,7 +383,7 @@ export function entferneUndFuelle(feld, zellen, arten, zufall = Math.random) {
 export function mische(feld, zufall = Math.random) {
   const n = feld.length;
   const frei = [];                      // Zellen, die mitgemischt werden (zeilenweise)
-  for (let z = 0; z < n; z++) for (let s = 0; s < n; s++) if (!feld[z][s].gesperrt) frei.push([z, s]);
+  for (let z = 0; z < n; z++) for (let s = 0; s < n; s++) if (bewegbar(feld[z][s])) frei.push([z, s]);
   const alle = frei.map(([z, s]) => feld[z][s]);
   const passt = (neu, z, s, stein) => {
     if (laufLinks(neu, z, s, stein.art) + 1 >= minLaenge) return false;
@@ -396,7 +401,7 @@ export function mische(feld, zufall = Math.random) {
       [vorrat[i], vorrat[j]] = [vorrat[j], vorrat[i]];
     }
     // neu: Kopie des Feldes mit den festen (gesperrten) Steinen schon an ihrem Platz
-    const neu = feld.map((zeile) => zeile.map((stein) => (stein.gesperrt ? stein : null)));
+    const neu = feld.map((zeile) => zeile.map((stein) => (bewegbar(stein) ? null : stein)));
     let ok = true;
     for (const [z, s] of frei) {
       const i = vorrat.findIndex((stein) => passt(neu, z, s, stein));

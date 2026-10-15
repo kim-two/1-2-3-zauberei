@@ -149,6 +149,22 @@ export const SVG_DEFS = `
       <path d="M10 10 L22 10" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".8"/>
     </symbol>
 
+    <!-- Kokosnuss: Hindernis, nimmt an nichts teil -->
+    <radialGradient id="v-kokos" cx="38%" cy="32%" r="75%">
+      <stop offset="0" stop-color="#b98254"/>
+      <stop offset="1" stop-color="#5e3a1e"/>
+    </radialGradient>
+    <symbol id="kokosnuss" viewBox="0 0 100 100">
+      <circle cx="50" cy="54" r="38" fill="url(#v-kokos)" stroke="#3e2410" stroke-width="4"/>
+      <g fill="none" stroke="#3e2410" stroke-width="2" stroke-linecap="round" opacity=".45">
+        <path d="M22 40 Q30 36 36 30"/><path d="M18 56 Q28 52 36 46"/><path d="M26 74 Q38 70 46 62"/>
+        <path d="M64 28 Q72 30 78 38"/><path d="M70 74 Q78 68 82 58"/>
+      </g>
+      <circle cx="42" cy="46" r="5" fill="#2a170a"/><circle cx="58" cy="46" r="5" fill="#2a170a"/>
+      <ellipse cx="50" cy="60" rx="5" ry="6" fill="#2a170a"/>
+      <path d="M30 32 Q36 24 46 22" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity=".45" fill="none"/>
+    </symbol>
+
     <!-- Schloss + Kette: Stein ist vom Drachen gesperrt -->
     <symbol id="schloss" viewBox="0 0 100 100">
       <path d="M32 46 V34 A18 18 0 0 1 68 34 V46" fill="none" stroke="#7d6f93" stroke-width="9" stroke-linecap="round"/>

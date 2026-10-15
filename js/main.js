@@ -1,9 +1,9 @@
 // Einstiegspunkt des Spiels: Darstellung, Touch-Steuerung und Effekte.
 // Die Versionsnummer muss mit CACHE_VERSION in sw.js übereinstimmen.
-const VERSION = "0.6.1";
+const VERSION = "0.7.0";
 
 import {
-  erzeugeFeld, setzeMinLaenge, findeMoeglichenZug, sindNachbarn, tausche, mische,
+  erzeugeFeld, setzeMinLaenge, bewegbar, findeMoeglichenZug, sindNachbarn, tausche, mische,
   berechneAufloesung, findeAlleTreffer, berechnePunkte, wendeAufloesungAn,
 } from "./board.js";
 import { STEINE, SVG_DEFS } from "./steine.js";
@@ -106,10 +106,11 @@ function setzePosition(el, z, s) {
 
 function erzeugeElement(stein) {
   const el = document.createElement("div");
-  el.className = "stein";
-  el.innerHTML =
-    `<div class="bild"><svg viewBox="0 0 100 100" role="img" aria-label="${STEINE[stein.art].name}">` +
-    `<use href="#stein-${stein.art}"/></svg></div>`;
+  el.className = "stein" + (stein.kokos ? " kokos" : "");
+  el.innerHTML = stein.kokos
+    ? '<div class="bild"><svg viewBox="0 0 100 100" role="img" aria-label="Kokosnuss"><use href="#kokosnuss"/></svg></div>'
+    : `<div class="bild"><svg viewBox="0 0 100 100" role="img" aria-label="${STEINE[stein.art].name}">` +
+      `<use href="#stein-${stein.art}"/></svg></div>`;
   steineEbene.append(el);
   elemente.set(stein.id, el);
   if (stein.spezial === "stab") zeigeAlsStab(el, stein);
@@ -159,7 +160,7 @@ function aktualisiereLeuchten() {
     for (const stein of zeile) {
       const el = elemente.get(stein.id);
       if (!el) continue;
-      el.classList.toggle("ziel-leuchten", arten.has(stein.art) || (gefangene && stein.schutz > 0));
+      el.classList.toggle("ziel-leuchten", !stein.kokos && arten.has(stein.art) || (gefangene && stein.schutz > 0));
     }
   }
 }
@@ -265,7 +266,7 @@ async function loeseTrefferAuf(bevorzugt = []) {
     const aufloesung = berechneAufloesung(feld, gruppen, kette === 1 ? bevorzugt : []);
     const { entfernen, geschwaecht, neueStaebe, ausgeloest } = aufloesung;
     const wertung = berechnePunkte(gruppen, aufloesung, kette);
-    const farbeBei = ([z, s]) => STEINE[feld[z][s].art].farbe;
+    const farbeBei = ([z, s]) => (feld[z][s].kokos ? "#a86a3a" : STEINE[feld[z][s].art].farbe);
 
     // Punkte-Popups für Gruppen und Stab-Reihen
     const laengste = Math.max(...gruppen.map((g) => g.zellen.length));
@@ -360,7 +361,11 @@ async function mischeNeu() {
     void steineEbene.offsetHeight;
     for (const el of elemente.values()) el.classList.remove("ohne-animation");
   } else if (!gesperrteZeilen().length) {
+    // Neues Feld; Kokosnüsse bleiben an ihren Plätzen
+    const kokosZellen = [];
+    feld.forEach((reihe, z) => reihe.forEach((st, s) => st.kokos && kokosZellen.push([z, s])));
     feld = erzeugeFeld(GROESSE, ARTEN);
+    for (const [z, s] of kokosZellen) feld[z][s].kokos = true;
     baueFeldNeu();
   }   // mit gesperrten Reihen bleibt das Feld, wie es ist – der Drache-Dialog greift dann ein
   await warte(320);
@@ -379,7 +384,7 @@ function baueFeldNeu() {
   }
 }
 
-// Vom Drachen gesperrte Steine wackeln nur kurz – sie lassen sich nicht benutzen.
+// Vom Drachen gesperrte Steine und Kokosnüsse wackeln nur kurz – sie lassen sich nicht benutzen.
 function wackleGesperrt(...zellen) {
   for (const zelle of zellen) {
     const el = elementBei(zelle);
@@ -391,9 +396,9 @@ function wackleGesperrt(...zellen) {
 }
 
 async function versucheTausch(a, b) {
-  if (feld[a[0]][a[1]].gesperrt || feld[b[0]][b[1]].gesperrt) {
+  if (!bewegbar(feld[a[0]][a[1]]) || !bewegbar(feld[b[0]][b[1]])) {
     waehleAb();
-    wackleGesperrt(...[a, b].filter(([z, s]) => feld[z][s].gesperrt));
+    wackleGesperrt(...[a, b].filter(([z, s]) => !bewegbar(feld[z][s])));
     return;
   }
   beschaeftigt = true;
@@ -473,7 +478,7 @@ steineEbene.addEventListener("pointerdown", (event) => {
   if (beschaeftigt || geste || !spielAktiv) return;
   const zelle = zelleAus(event);
   if (!zelle) return;
-  if (feld[zelle[0]][zelle[1]].gesperrt) {
+  if (!bewegbar(feld[zelle[0]][zelle[1]])) {
     waehleAb();
     wackleGesperrt(zelle);
     return;
@@ -752,9 +757,11 @@ function zielListeHtml(mitStand) {
 function zeigeAufgabeVor() {
   const hinweis = aufgabe.ziele.some((z) => z.typ === "befreien")
     ? "<p>Triff die gefangenen Steine oder ihre Nachbarn, bis die Ranken weg sind!</p>" : "";
+  const kokos = aufgabe.kokosnuesse
+    ? '<p><svg class="mini-kokos" viewBox="0 0 100 100"><use href="#kokosnuss"/></svg> Kokosnüsse lassen sich nicht bewegen. Ein Zauberstab räumt sie ab!</p>' : "";
   zeigeDialog({
     titel: `Aufgabe ${aufgabeNr + 1}: ${aufgabe.titel}`,
-    text: `${zielListeHtml(false)}${hinweis}<p>Du hast <b>${aufgabe.zuege} Züge</b>.</p>`,
+    text: `${zielListeHtml(false)}${hinweis}${kokos}<p>Du hast <b>${aufgabe.zuege} Züge</b>.</p>`,
     knoepfe: [
       { text: "← Zurück", klasse: "knopf-zart", aktion: zeigeAufgabenwahl },
       { text: "Los geht's!", aktion: () => { schliesseBildschirme(); spielAktiv = true; aktualisiereDracheLeiste(); starteTipp(); } },

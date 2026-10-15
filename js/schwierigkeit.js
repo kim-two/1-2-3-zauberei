@@ -16,7 +16,7 @@ export const SCHWIERIGKEITEN = {
     drache: false,
     // Mit nur 2 gleichen lösen sich so viele Steine auf, dass die Ziele größer sein müssen,
     // damit eine Aufgabe nicht schon nach 2 Zügen geschafft ist (Faktoren je Ziel-Typ).
-    zielFaktor: { sammeln: 2.5, punkte: 2.5, befreien: 1.5, staebe: 1 },
+    zielFaktor: { sammeln: 2.5, punkte: 2.5, befreien: 1.5, staebe: 1, kokos: 0.5 },
   },
   entdeckerin: {
     id: "entdeckerin",
