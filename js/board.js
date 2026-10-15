@@ -5,6 +5,8 @@
 //   schutz, gefangen – Ranken/Steinhülle (Aufgaben-Modus)
 //   kokos            – Kokosnuss: nimmt an nichts teil, lässt sich nicht tauschen, fällt aber nach unten;
 //                      nur ein Zauberstab-Strahl räumt sie ab
+//   fels             – Felsbrocken (Eiswelt): unbeweglich und unzerstörbar; Steine fallen „durch“ ihn hindurch
+//   eis              – gefroren (Schutz 1): muss einmal aufgelöst werden, dann taut das Eis (Steine bleibt liegen)
 //   gesperrt         – vom Drachen gesperrt: nimmt an nichts teil und bleibt, wo er ist
 
 let naechsteId = 1;
@@ -34,10 +36,34 @@ export function neuerStein(arten, zufall = Math.random) {
 }
 
 // Läßt sich ein Stein per Tausch verschieben? (nicht: gesperrt, Kokosnuss)
-export const bewegbar = (stein) => !stein.gesperrt && !stein.kokos;
+export const bewegbar = (stein) => !stein.gesperrt && !stein.kokos && !stein.fels;
+
+// Feste Zellen: der Stein bleibt dort für immer (oder bis zur Freigabe) – Steine fallen „durch“ sie hindurch
+const fest = (stein) => Boolean(stein) && (stein.gesperrt || stein.fels);
+
+// Richtung des Sonderstabs: Zauberstab (Feenwelt) räumt die Reihe, Feuerstab (Eiswelt) die Spalte
+let stabSpalte = false;
+export function setzeStabRichtung(richtung) { stabSpalte = richtung === "spalte"; }
+
+// Schneesturm: friert anzahl zufällige Steine ein (Schutz 1, nur ein Treffer mit dem Stein selbst taut ihn auf)
+export function friereSteine(feld, anzahl, zufall = Math.random) {
+  const kandidaten = [];
+  feld.forEach((reihe, z) => reihe.forEach((stein, s) => {
+    if (aktiv(stein) && !(stein.schutz > 0)) kandidaten.push([z, s]);
+  }));
+  const gewaehlt = [];
+  while (gewaehlt.length < anzahl && kandidaten.length) {
+    const [zelle] = kandidaten.splice(Math.floor(zufall() * kandidaten.length), 1);
+    const stein = feld[zelle[0]][zelle[1]];
+    stein.schutz = 1;
+    stein.eis = true;
+    gewaehlt.push(zelle);
+  }
+  return gewaehlt;
+}
 
 // Stein, der mitspielen darf (vorhanden und nicht gesperrt)
-const aktiv = (stein) => Boolean(stein) && !stein.gesperrt && !stein.kokos;
+const aktiv = (stein) => Boolean(stein) && !stein.gesperrt && !stein.kokos && !stein.fels;
 
 // Länge der Reihe gleicher Steine, die direkt links/oberhalb von (z, s) endet (ohne (z, s) selbst).
 function laufLinks(feld, z, s, art) {
@@ -149,11 +175,12 @@ export function berechneAufloesung(feld, gruppen, bevorzugt = []) {
     if (stein?.spezial !== "stab" || schonAusgeloest.has(key([z, s]))) continue;
     schonAusgeloest.add(key([z, s]));
     ausgeloest.push([z, s]);
-    for (let k = 0; k < feld[z].length; k++) {
-      if (feld[z][k].gesperrt) continue;
-      if (!entfernen.has(key([z, k]))) {
-        entfernen.set(key([z, k]), [z, k]);
-        warteschlange.push([z, k]);
+    for (let k = 0; k < (stabSpalte ? feld.length : feld[z].length); k++) {
+      const [z2, s2] = stabSpalte ? [k, s] : [z, k];      // Feuerstab: Spalte, Zauberstab: Reihe
+      if (fest(feld[z2][s2])) continue;
+      if (!entfernen.has(key([z2, s2]))) {
+        entfernen.set(key([z2, s2]), [z2, s2]);
+        warteschlange.push([z2, s2]);
       }
     }
   }
@@ -164,7 +191,7 @@ export function berechneAufloesung(feld, gruppen, bevorzugt = []) {
     for (const [dz, ds] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
       const nachbar = feld[z + dz]?.[s + ds];
       const k = key([z + dz, s + ds]);
-      if (nachbar?.schutz > 0 && !nachbar.gesperrt && !entfernen.has(k)) nebenan.set(k, [z + dz, s + ds]);
+      if (nachbar?.schutz > 0 && !nachbar.eis && !fest(nachbar) && !entfernen.has(k)) nebenan.set(k, [z + dz, s + ds]);
     }
   }
 
@@ -210,11 +237,12 @@ export function berechnePunkte(gruppen, aufloesung, kette) {
   const betroffen = [...aufloesung.entfernen, ...aufloesung.geschwaecht];
   const proReihe = [];
   const gezaehlt = new Set();
-  for (const [z] of aufloesung.ausgeloest) {
-    if (gezaehlt.has(z)) continue;            // zwei Stäbe in einer Reihe: Reihe nur einmal zählen
-    gezaehlt.add(z);
-    const extra = betroffen.filter(([zz, ss]) => zz === z && !inGruppe.has(`${zz},${ss}`)).length;
-    proReihe.push({ zeile: z, punkte: (extra * PUNKTE_PRO_STEIN + STAB_BONUS) * kette });
+  for (const [z, s] of aufloesung.ausgeloest) {
+    const linie = stabSpalte ? s : z;
+    if (gezaehlt.has(linie)) continue;        // zwei Stäbe in einer Reihe/Spalte: nur einmal zählen
+    gezaehlt.add(linie);
+    const extra = betroffen.filter(([zz, ss]) => (stabSpalte ? ss : zz) === linie && !inGruppe.has(`${zz},${ss}`)).length;
+    proReihe.push({ [stabSpalte ? "spalte" : "zeile"]: linie, punkte: (extra * PUNKTE_PRO_STEIN + STAB_BONUS) * kette });
   }
   const gesamt = proGruppe.reduce((a, b) => a + b, 0) + proReihe.reduce((a, r) => a + r.punkte, 0);
   return { gesamt, proGruppe, proReihe };
@@ -230,6 +258,7 @@ export function wendeAufloesungAn(feld, aufloesung, arten, zufall = Math.random)
     const stein = feld[z][s];
     stein.schutz--;
     statistik.geknackt++;
+    if (stein.schutz === 0) stein.eis = false;      // Eis ist geschmolzen
     if (stein.schutz === 0 && stein.gefangen) {
       stein.gefangen = false;
       statistik.befreit++;
@@ -343,7 +372,7 @@ export function entferneUndFuelle(feld, zellen, arten, zufall = Math.random) {
     const frei = [];                    // freie Zeilen, von unten nach oben
     const bleibende = [];               // Steine, die nachrutschen, von unten nach oben
     for (let z = n - 1; z >= 0; z--) {
-      if (feld[z][s]?.gesperrt) continue;
+      if (fest(feld[z][s])) continue;
       frei.push(z);
       if (feld[z][s]) bleibende.push(feld[z][s]);
     }

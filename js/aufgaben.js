@@ -9,6 +9,9 @@
 // huellen: Anzahl Steine in Steinhülle mit Ranken (3 Treffer zum Befreien)
 // kokosnuesse: Anzahl Kokosnüsse auf dem Feld (nehmen an nichts teil, lassen sich nicht tauschen;
 //   nur ein Zauberstab räumt sie ab). Nicht jede Aufgabe hat welche.
+// eissteine: Anzahl von Anfang an gefrorener Steine (Eiswelt): ein Treffer mit dem Stein selbst taut das Eis auf
+// felsen:   Anzahl Felsbrocken (Eiswelt): unbeweglich und unzerstörbar, Steine fallen daran vorbei
+// sturm:    true = in dieser Aufgabe zieht von Zeit zu Zeit ein Schneesturm auf und friert 3–5 Steine ein
 // Ein Treffer ist ein Treffer mit dem Stein selbst oder direkt daneben.
 
 import { erzeugeFeld, findeMoeglichenZug } from "./board.js";
@@ -33,6 +36,22 @@ export const AUFGABEN = [
   { titel: "Die große Kokosernte", zuege: 26, ranken: 4, huellen: 3, kokosnuesse: 6, ziele: [{ typ: "befreien", anzahl: 7 }, { typ: "sammeln", art: 1, anzahl: 12 }] },
 ];
 
+// ---------- Eiswelt ----------
+// Steine: 0 Pinguin, 1 Eisbär, 2 Robbe, 3 Eiskristall, 4 Weihnachtskeks, 5 Schneemann.
+// Statt des Zauberstabs gibt es den Feuerstab (löst die ganze Spalte auf).
+export const EIS_AUFGABEN = [
+  { titel: "Pinguin-Parade",       zuege: 20, ziele: [{ typ: "sammeln", art: 0, anzahl: 16 }] },
+  { titel: "Plätzchen-Zauber",     zuege: 15, ziele: [{ typ: "punkte", anzahl: 1500 }] },
+  { titel: "Eisbärenhöhle",        zuege: 22, ziele: [{ typ: "sammeln", art: 1, anzahl: 13 }, { typ: "sammeln", art: 2, anzahl: 13 }] },
+  { titel: "Feuerstab-Schule",     zuege: 20, ziele: [{ typ: "staebe", anzahl: 4 }] },
+  { titel: "Der erste Schneesturm", zuege: 22, sturm: true, ziele: [{ typ: "sammeln", art: 3, anzahl: 18 }] },
+  { titel: "Zugefrorener See",     zuege: 22, eissteine: 5, ziele: [{ typ: "befreien", anzahl: 5 }] },
+  { titel: "Felsen-Pass",          zuege: 22, felsen: 6, ziele: [{ typ: "sammeln", art: 2, anzahl: 18 }] },
+  { titel: "Eisbrecher",           zuege: 25, sturm: true, eissteine: 5, ziele: [{ typ: "befreien", anzahl: 5 }, { typ: "sammeln", art: 0, anzahl: 12 }] },
+  { titel: "Lawine!",              zuege: 22, felsen: 5, sturm: true, ziele: [{ typ: "staebe", anzahl: 3 }] },
+  { titel: "Die große Polarnacht", zuege: 28, felsen: 4, eissteine: 4, sturm: true, ziele: [{ typ: "befreien", anzahl: 4 }, { typ: "sammeln", art: 4, anzahl: 14 }] },
+];
+
 // Aufgabe für eine Schwierigkeitsstufe: Ziele und gefangene Steine werden mit dem
 // zielFaktor der Stufe vergrößert (Stufen ohne zielFaktor behalten die Aufgabe unverändert).
 export function aufgabeFuerStufe(aufgabe, stufe) {
@@ -44,22 +63,26 @@ export function aufgabeFuerStufe(aufgabe, stufe) {
     ranken: aufgabe.ranken ? skaliere(aufgabe.ranken, faktor.befreien ?? 1) : undefined,
     huellen: aufgabe.huellen ? skaliere(aufgabe.huellen, faktor.befreien ?? 1) : undefined,
     kokosnuesse: aufgabe.kokosnuesse ? skaliere(aufgabe.kokosnuesse, faktor.kokos ?? 1) : undefined,
+    eissteine: aufgabe.eissteine ? skaliere(aufgabe.eissteine, faktor.befreien ?? 1) : undefined,
+    felsen: aufgabe.felsen ? skaliere(aufgabe.felsen, faktor.kokos ?? 1) : undefined,
     ziele: aufgabe.ziele.map((ziel) => ({ ...ziel, anzahl: skaliere(ziel.anzahl, faktor[ziel.typ] ?? 1) })),
   };
   // "Befreie N Steine" soll genau zu den gefangenen Steinen passen
-  const gefangen = (angepasst.ranken || 0) + (angepasst.huellen || 0);
+  const gefangen = (angepasst.ranken || 0) + (angepasst.huellen || 0) + (angepasst.eissteine || 0);
   for (const ziel of angepasst.ziele) if (ziel.typ === "befreien") ziel.anzahl = gefangen;
   return angepasst;
 }
 
 const MEHRZAHL = ["Kristalle", "Sterne", "Blätter", "Tropfen", "Blumen", "Einhorn-Hörner"];
 
-export function zielText(ziel) {
+// welt: Texte der Welt (siehe welten.js); ohne Angabe die Feenwelt
+export function zielText(ziel, welt = {}) {
+  const mehrzahl = welt.mehrzahl || MEHRZAHL;
   switch (ziel.typ) {
-    case "sammeln":  return `Sammle ${ziel.anzahl} ${MEHRZAHL[ziel.art]}`;
-    case "befreien": return `Befreie ${ziel.anzahl} gefangene Steine`;
+    case "sammeln":  return `Sammle ${ziel.anzahl} ${mehrzahl[ziel.art]}`;
+    case "befreien": return (welt.befreienText || ((n) => `Befreie ${n} gefangene Steine`))(ziel.anzahl);
     case "punkte":   return `Erreiche ${ziel.anzahl.toLocaleString("de-DE")} Punkte`;
-    case "staebe":   return `Zaubere ${ziel.anzahl} Zauberstäbe`;
+    case "staebe":   return (welt.stabText || ((n) => `Zaubere ${n} Zauberstäbe`))(ziel.anzahl);
     default:         return "";
   }
 }
@@ -114,7 +137,11 @@ function baueAufgabenFeld(aufgabe, groesse, arten, zufall) {
     feld[z][s].schutz = i < huellen ? 3 : 2;
   });
   // Kokosnüsse auf anderen Feldern (nicht in der obersten Reihe)
-  zellen.slice(huellen + ranken, huellen + ranken + (aufgabe.kokosnuesse || 0))
-    .forEach(([z, s]) => { feld[z][s].kokos = true; });
+  let nr = huellen + ranken;
+  zellen.slice(nr, nr += (aufgabe.eissteine || 0)).forEach(([z, s]) => {
+    Object.assign(feld[z][s], { gefangen: true, schutz: 1, eis: true });
+  });
+  zellen.slice(nr, nr += (aufgabe.kokosnuesse || 0)).forEach(([z, s]) => { feld[z][s].kokos = true; });
+  zellen.slice(nr, nr += (aufgabe.felsen || 0)).forEach(([z, s]) => { feld[z][s].fels = true; });
   return feld;
 }

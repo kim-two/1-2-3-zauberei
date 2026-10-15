@@ -980,3 +980,40 @@ body {
 }
 .taste:active { transform: translateY(3px); box-shadow: 0 1px 0 #cdb8f0; }
 .taste-ok { background: #ff6fae; box-shadow: 0 4px 0 #c43a7e; color: #fff; }
+
+/* ---------- Welten: Reiter in der Aufgabenwahl ---------- */
+.reiter-leiste { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
+.reiter {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 8px 10px; border: 3px solid #d9c8f5; border-radius: 16px;
+  background: #fff; color: #5a3a8c; font: inherit; font-weight: 700; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.reiter svg { width: 30px; height: 30px; }
+.reiter.aktiv { border-color: #a970ff; background: linear-gradient(180deg, #f3eaff, #e2d0ff); box-shadow: 0 0 0 3px rgba(169, 112, 255, 0.3); }
+.reiter[data-welt="eis"].aktiv { border-color: #4fb8f0; background: linear-gradient(180deg, #eaf8ff, #cdeeff); box-shadow: 0 0 0 3px rgba(79, 184, 240, 0.3); }
+
+/* ---------- Eiswelt ---------- */
+body[data-welt="eis"] #landschaft { filter: sepia(0.9) hue-rotate(158deg) saturate(0.8) brightness(1.2); }
+.stein.fels .bild { filter: drop-shadow(0 3px 3px rgba(20, 30, 50, 0.4)); }
+.strahl.senkrecht {
+  top: 0; left: 0; width: calc(100% / var(--n, 8)); height: 100%;
+  background: linear-gradient(90deg,
+    transparent 0%, var(--farbe) 25%, #fff 45%, #fff 55%, var(--farbe) 75%, transparent 100%);
+  animation: strahl-senkrecht 0.55s ease-out forwards;
+}
+@keyframes strahl-senkrecht {
+  0%   { transform: scaleY(0) scaleX(0.4); opacity: 1; }
+  45%  { transform: scaleY(1) scaleX(1); opacity: 1; }
+  100% { transform: scaleY(1) scaleX(0.2); opacity: 0; }
+}
+
+/* Schneesturm */
+.sturm { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 5; background: linear-gradient(90deg, rgba(235, 248, 255, 0.55), rgba(235, 248, 255, 0.2)); animation: sturm-weiss 2s ease-in-out forwards; }
+.sturm span { position: absolute; top: -10%; color: #fff; text-shadow: 0 0 6px #7fc8f0; animation: flocke 1.3s linear infinite; }
+@keyframes flocke { to { transform: translate(var(--wind, 20%), 120vh) rotate(360deg); } }
+@keyframes sturm-weiss { 0% { opacity: 0; } 20%, 70% { opacity: 1; } 100% { opacity: 0; } }
+.sturm-wackeln .stein { animation: beben 0.25s linear infinite; }
+@keyframes beben { 25% { margin-left: -2px; } 75% { margin-left: 2px; } }
+.stein.friert .schutz { animation: einfrieren 0.6s ease-out; }
+@keyframes einfrieren { 0% { transform: scale(1.6); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }

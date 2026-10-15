@@ -1,29 +1,30 @@
 // Einstiegspunkt des Spiels: Darstellung, Touch-Steuerung und Effekte.
 // Die Versionsnummer muss mit CACHE_VERSION in sw.js übereinstimmen.
-const VERSION = "0.7.0";
+const VERSION = "0.8.0";
 
 import {
-  erzeugeFeld, setzeMinLaenge, bewegbar, findeMoeglichenZug, sindNachbarn, tausche, mische,
+  erzeugeFeld, setzeMinLaenge, setzeStabRichtung, friereSteine, bewegbar, findeMoeglichenZug, sindNachbarn, tausche, mische,
   berechneAufloesung, findeAlleTreffer, berechnePunkte, wendeAufloesungAn,
 } from "./board.js";
-import { STEINE, SVG_DEFS } from "./steine.js";
+import { SVG_DEFS } from "./steine.js";
+import { WELTEN, WELT_REIHENFOLGE } from "./welten.js";
 import { SCHWIERIGKEITEN, REIHENFOLGE, STANDARD, schluessel } from "./schwierigkeit.js";
 import {
-  AUFGABEN, aufgabeFuerStufe, zielText, zielStand, istGeschafft, leererStand, addiereStand, erzeugeAufgabenFeld,
+  aufgabeFuerStufe, zielText, zielStand, istGeschafft, leererStand, addiereStand, erzeugeAufgabenFeld,
 } from "./aufgaben.js";
 import { EINHORN_SVG, FEE_SVG, DRACHE_SVG, STUFEN_BILD } from "./figuren.js";
 import { erzeugeRechenaufgabe, leseAntwort, zuegeBisDrache } from "./herausforderungen.js";
 
 // ---------- Einstellungen ----------
 let GROESSE = 8;                     // Kantenlänge – hängt von der Schwierigkeit ab (setzeStufe)
-const ARTEN = STEINE.length;
+const ARTEN = 6;
 const TIPP_NACH_MS = 6000;           // nach so langer Pause zeigt das Spiel einen möglichen Zug
 const LOB_KETTE = ["Toll!", "Super!", "Fantastisch!", "Zauberhaft!"]; // 2., 3., 4., 5.+ Kettenreaktion
 const REKORD_BASIS = "zauberei-rekord";
-const FORTSCHRITT_BASIS = "zauberei-aufgaben";       // Liste der geschafften Aufgaben
+const FORTSCHRITT_BASIS = "zauberei-aufgaben";       // Liste der geschafften Aufgaben (Eiswelt: Endung -eis)
 const STUFE_SCHLUESSEL = "zauberei-stufe";           // zuletzt gewählte Schwierigkeit
 const rekordSchluessel = () => schluessel(REKORD_BASIS, stufe.id);
-const fortschrittSchluessel = () => schluessel(FORTSCHRITT_BASIS, stufe.id);
+const fortschrittSchluessel = (w = welt) => schluessel(w === "feen" ? FORTSCHRITT_BASIS : `${FORTSCHRITT_BASIS}-${w}`, stufe.id);
 
 // ---------- Elemente ----------
 document.body.insertAdjacentHTML("afterbegin", SVG_DEFS);
@@ -39,6 +40,11 @@ document.getElementById("version").textContent = VERSION;
 
 // ---------- Zustand ----------
 let stufe = SCHWIERIGKEITEN[STANDARD];
+let welt = "feen";                   // aktuelle Welt: "feen" oder "eis"
+let STEINE_AKT = WELTEN.feen.steine; // Steine der aktuellen Welt (Name, Farbe)
+const weltDaten = (w = welt) => WELTEN[w];
+const aufgabenListe = (w = welt) => WELTEN[w].aufgaben;
+const symbolId = (art, w = welt) => `${WELTEN[w].symbol}${art}`;
 let feld = [];
 let punkte = 0;
 let rekord = 0;
@@ -106,11 +112,12 @@ function setzePosition(el, z, s) {
 
 function erzeugeElement(stein) {
   const el = document.createElement("div");
-  el.className = "stein" + (stein.kokos ? " kokos" : "");
-  el.innerHTML = stein.kokos
-    ? '<div class="bild"><svg viewBox="0 0 100 100" role="img" aria-label="Kokosnuss"><use href="#kokosnuss"/></svg></div>'
-    : `<div class="bild"><svg viewBox="0 0 100 100" role="img" aria-label="${STEINE[stein.art].name}">` +
-      `<use href="#stein-${stein.art}"/></svg></div>`;
+  el.className = "stein" + (stein.kokos ? " kokos" : "") + (stein.fels ? " fels" : "");
+  const hindernis = stein.kokos ? ["kokosnuss", "Kokosnuss"] : stein.fels ? ["felsbrocken", "Felsbrocken"] : null;
+  el.innerHTML = hindernis
+    ? `<div class="bild"><svg viewBox="0 0 100 100" role="img" aria-label="${hindernis[1]}"><use href="#${hindernis[0]}"/></svg></div>`
+    : `<div class="bild"><svg viewBox="0 0 100 100" role="img" aria-label="${STEINE_AKT[stein.art].name}">` +
+      `<use href="#${symbolId(stein.art)}"/></svg></div>`;
   steineEbene.append(el);
   elemente.set(stein.id, el);
   if (stein.spezial === "stab") zeigeAlsStab(el, stein);
@@ -131,8 +138,12 @@ function zeigeSchutz(el, stein) {
     el.append(ebene);
   }
   const teile = [];
-  if (stein.schutz >= 3) teile.push("huelle");
-  teile.push(stein.schutz >= 2 ? "ranken-2" : "ranken-1");
+  if (stein.eis) {
+    teile.push("eisschicht");
+  } else {
+    if (stein.schutz >= 3) teile.push("huelle");
+    teile.push(stein.schutz >= 2 ? "ranken-2" : "ranken-1");
+  }
   ebene.innerHTML = teile.map((t) => `<svg viewBox="0 0 100 100"><use href="#${t}"/></svg>`).join("");
 }
 
@@ -140,10 +151,10 @@ function zeigeSchutz(el, stein) {
 function zeigeAlsStab(el, stein) {
   if (el.classList.contains("stab")) return;
   el.classList.add("stab");
-  el.style.setProperty("--farbe", STEINE[stein.art].farbe);
+  el.style.setProperty("--farbe", STEINE_AKT[stein.art].farbe);
   el.insertAdjacentHTML("afterbegin", '<div class="aura"></div>');
   el.insertAdjacentHTML("beforeend",
-    '<svg class="stab-symbol" viewBox="0 0 100 100" aria-label="Zauberstab"><use href="#zauberstab"/></svg>');
+    `<svg class="stab-symbol" viewBox="0 0 100 100" aria-label="${weltDaten().stab.name}"><use href="#${weltDaten().stab.symbol}"/></svg>`);
 }
 
 function elementBei([z, s]) {
@@ -160,7 +171,7 @@ function aktualisiereLeuchten() {
     for (const stein of zeile) {
       const el = elemente.get(stein.id);
       if (!el) continue;
-      el.classList.toggle("ziel-leuchten", !stein.kokos && arten.has(stein.art) || (gefangene && stein.schutz > 0));
+      el.classList.toggle("ziel-leuchten", (!stein.kokos && !stein.fels && arten.has(stein.art)) || (gefangene && stein.gefangen && stein.schutz > 0));
     }
   }
 }
@@ -234,12 +245,18 @@ function funkenregen([z, s], farbe, anzahl) {
   }
 }
 
-// Lichtstrahl über die ganze Reihe, ausgehend vom Zauberstab
+// Lichtstrahl über die ganze Reihe (Zauberstab) bzw. Spalte (Feuerstab), ausgehend vom Stab
 function strahl([z, s], farbe) {
   const el = document.createElement("div");
-  el.className = "strahl";
-  el.style.top = `${(z / GROESSE) * 100}%`;
-  el.style.transformOrigin = `${((s + 0.5) / GROESSE) * 100}% 50%`;
+  const senkrecht = weltDaten().stab.richtung === "spalte";
+  el.className = "strahl" + (senkrecht ? " senkrecht" : "");
+  if (senkrecht) {
+    el.style.left = `${(s / GROESSE) * 100}%`;
+    el.style.transformOrigin = `50% ${((z + 0.5) / GROESSE) * 100}%`;
+  } else {
+    el.style.top = `${(z / GROESSE) * 100}%`;
+    el.style.transformOrigin = `${((s + 0.5) / GROESSE) * 100}% 50%`;
+  }
   el.style.setProperty("--farbe", farbe);
   effektEbene.append(el);
   el.addEventListener("animationend", () => el.remove(), { once: true });
@@ -266,19 +283,20 @@ async function loeseTrefferAuf(bevorzugt = []) {
     const aufloesung = berechneAufloesung(feld, gruppen, kette === 1 ? bevorzugt : []);
     const { entfernen, geschwaecht, neueStaebe, ausgeloest } = aufloesung;
     const wertung = berechnePunkte(gruppen, aufloesung, kette);
-    const farbeBei = ([z, s]) => (feld[z][s].kokos ? "#a86a3a" : STEINE[feld[z][s].art].farbe);
+    const farbeBei = ([z, s]) => (feld[z][s].kokos ? "#a86a3a" : STEINE_AKT[feld[z][s].art].farbe);
 
     // Punkte-Popups für Gruppen und Stab-Reihen
     const laengste = Math.max(...gruppen.map((g) => g.zellen.length));
     const inGruppe = new Set(gruppen.flatMap((g) => g.zellen.map((z) => z.join(","))));
     gruppen.forEach((g, i) => {
       const { links, oben } = mitte(g.zellen);
-      effekt("punkte-popup", links, oben, { "--farbe": STEINE[g.art].farbe }, `+${wertung.proGruppe[i]}`);
+      effekt("punkte-popup", links, oben, { "--farbe": STEINE_AKT[g.art].farbe }, `+${wertung.proGruppe[i]}`);
     });
     for (const zelle of ausgeloest) strahl(zelle, farbeBei(zelle));
-    for (const { zeile, punkte: p } of wertung.proReihe) {
-      const stab = ausgeloest.find(([z]) => z === zeile);
-      const { links, oben } = mitte([[zeile, 3.5]]);
+    for (const { zeile, spalte, punkte: p } of wertung.proReihe) {
+      const stab = ausgeloest.find(([z, s]) => (spalte !== undefined ? s === spalte : z === zeile));
+      const mitteZelle = spalte !== undefined ? [(GROESSE - 1) / 2, spalte] : [zeile, (GROESSE - 1) / 2];
+      const { links, oben } = mitte([mitteZelle]);
       effekt("punkte-popup", links, oben - 6, { "--farbe": farbeBei(stab) }, `+${p}`);
     }
 
@@ -297,8 +315,8 @@ async function loeseTrefferAuf(bevorzugt = []) {
       const stein = feld[zelle[0]][zelle[1]];
       const el = elemente.get(stein.id);
       el.querySelector(".schutz")?.classList.add("knackt");
-      funkenregen(zelle, stein.schutz >= 3 ? "#a99bbf" : "#4cc96b", 8);
-      return { stein, el, zelle };
+      funkenregen(zelle, stein.eis ? "#bfe8ff" : stein.schutz >= 3 ? "#a99bbf" : "#4cc96b", 8);
+      return { stein, el, zelle, eis: Boolean(stein.eis) };
     });
 
     // Neue Zauberstäbe entstehen
@@ -313,8 +331,8 @@ async function loeseTrefferAuf(bevorzugt = []) {
       funkenregen(zelle, "#ffe14d", 12);
     }
 
-    if (ausgeloest.length) zeigeLob("Zauberei!");
-    else if (neueStaebe.length) zeigeLob("Zauberstab!");
+    if (ausgeloest.length) zeigeLob(weltDaten().stab.lob);
+    else if (neueStaebe.length) zeigeLob(`${weltDaten().stab.name}!`);
     else if (kette >= 2) zeigeLob(LOB_KETTE[Math.min(kette - 2, LOB_KETTE.length - 1)]);
 
     await warte(ausgeloest.length ? 480 : 400);
@@ -331,7 +349,8 @@ async function loeseTrefferAuf(bevorzugt = []) {
         effekt("ring", links, oben, { "--farbe": "#7fdc89", "--gross": "3" });
       }
     }
-    if (statistik.befreit && modus === "aufgabe") zeigeLob("Befreit!");
+    if (statistik.befreit && modus === "aufgabe") zeigeLob(welt === "eis" ? "Aufgetaut!" : "Befreit!");
+    else if (geknackt.some((g) => g.eis && !(g.stein.schutz > 0))) zeigeLob("Aufgetaut!");
     addierePunkte(wertung.gesamt);
     if (modus === "aufgabe") {
       addiereStand(stand, statistik, wertung.gesamt);
@@ -362,10 +381,10 @@ async function mischeNeu() {
     for (const el of elemente.values()) el.classList.remove("ohne-animation");
   } else if (!gesperrteZeilen().length) {
     // Neues Feld; Kokosnüsse bleiben an ihren Plätzen
-    const kokosZellen = [];
-    feld.forEach((reihe, z) => reihe.forEach((st, s) => st.kokos && kokosZellen.push([z, s])));
+    const hindernisse = [];
+    feld.forEach((reihe, z) => reihe.forEach((st, s) => (st.kokos || st.fels) && hindernisse.push([z, s, st])));
     feld = erzeugeFeld(GROESSE, ARTEN);
-    for (const [z, s] of kokosZellen) feld[z][s].kokos = true;
+    for (const [z, s, stein] of hindernisse) feld[z][s] = stein;
     baueFeldNeu();
   }   // mit gesperrten Reihen bleibt das Feld, wie es ist – der Drache-Dialog greift dann ein
   await warte(320);
@@ -430,6 +449,7 @@ async function versucheTausch(a, b) {
     }
     await loeseTrefferAuf([b, a]);   // b: dorthin wurde der Stein gezogen
     if (modus === "aufgabe" && pruefeAufgabenEnde()) return;
+    await sturmNachZug();                // Schneesturm kann aufziehen (Eiswelt)
     await dracheNachZug();               // Drache kann auftauchen (Dialog offen, spielAktiv ist dann false)
   }
 
@@ -546,6 +566,7 @@ async function baueSpielfeld(neuesFeld) {
 
 async function starteEndlos() {
   modus = "endlos";
+  setzeWelt("feen");
   setzeDracheZurueck();
   aufgabe = null;
   punkte = 0;
@@ -559,10 +580,12 @@ async function starteEndlos() {
   starteTipp();
 }
 
-async function starteAufgabe(nr) {
+async function starteAufgabe(nr, weltId = welt) {
   modus = "aufgabe";
+  setzeWelt(weltId);
   aufgabeNr = nr;
-  aufgabe = aufgabeFuerStufe(AUFGABEN[nr], stufe);
+  aufgabe = aufgabeFuerStufe(aufgabenListe()[nr], stufe);
+  sturm.zuegeBis = zuegeBisSturm(true);
   setzeDracheZurueck();
   stand = leererStand();
   zuegeUebrig = aufgabe.zuege;
@@ -579,16 +602,18 @@ async function starteAufgabe(nr) {
 }
 
 // ---------- Aufgaben: Anzeige und Ende ----------
-function zielIcon(ziel) {
+function zielIcon(ziel, w = welt) {
   switch (ziel.typ) {
     case "sammeln":
-      return `<svg viewBox="0 0 100 100"><use href="#stein-${ziel.art}"/></svg>`;
+      return `<svg viewBox="0 0 100 100"><use href="#${symbolId(ziel.art, w)}"/></svg>`;
     case "befreien":
-      return `<svg viewBox="0 0 100 100"><use href="#stein-0" opacity=".55"/><use href="#ranken-2"/></svg>`;
+      return w === "eis"
+        ? `<svg viewBox="0 0 100 100"><use href="#eis-0"/><use href="#eisschicht"/></svg>`
+        : `<svg viewBox="0 0 100 100"><use href="#stein-0" opacity=".55"/><use href="#ranken-2"/></svg>`;
     case "staebe":
-      return `<svg viewBox="0 0 100 100"><use href="#zauberstab"/></svg>`;
+      return `<svg viewBox="0 0 100 100"><use href="#${WELTEN[w].stab.symbol}"/></svg>`;
     case "punkte":
-      return `<svg viewBox="0 0 100 100"><use href="#stein-1"/></svg>`;
+      return `<svg viewBox="0 0 100 100"><use href="#${symbolId(1, w)}"/></svg>`;
     default:
       return "";
   }
@@ -627,9 +652,9 @@ function pruefeAufgabenEnde() {
   return false;
 }
 
-function ladeGeschafft() {
+function ladeGeschafft(w = welt) {
   try {
-    return new Set(JSON.parse(localStorage.getItem(fortschrittSchluessel()) || "[]"));
+    return new Set(JSON.parse(localStorage.getItem(fortschrittSchluessel(w)) || "[]"));
   } catch {
     return new Set();
   }
@@ -669,6 +694,14 @@ function setzeStufe(id, speichern = true) {
   }
 }
 
+// Welt wechseln: Steine, Sonderstab und Aussehen (Landschaft) hängen daran.
+function setzeWelt(w) {
+  welt = WELTEN[w] ? w : "feen";
+  STEINE_AKT = WELTEN[welt].steine;
+  setzeStabRichtung(WELTEN[welt].stab.richtung);
+  document.body.dataset.welt = welt;
+}
+
 function ladeStufe() {
   try {
     return localStorage.getItem(STUFE_SCHLUESSEL) || STANDARD;
@@ -705,16 +738,34 @@ async function waehleStufe(id) {
 
 function zeigeMenue() {
   spielAktiv = false;
+  document.body.dataset.welt = "feen";
   setzeDracheZurueck();
   zeigeStufenwahl();
   zeigeBildschirm("menue");
 }
 
-function zeigeAufgabenwahl() {
-  const geschafft = ladeGeschafft();
+let wahlWelt = "feen";                // aufgeschlagener Reiter in der Aufgabenwahl
+
+function zeigeAufgabenwahl(w = wahlWelt) {
+  wahlWelt = WELTEN[w] ? w : "feen";
+  document.body.dataset.welt = wahlWelt;       // Landschaft passend zum Reiter
+  const reiter = document.getElementById("welten");
+  reiter.innerHTML = "";
+  for (const id of WELT_REIHENFOLGE) {
+    const knopf = document.createElement("button");
+    knopf.type = "button";
+    knopf.className = "reiter" + (id === wahlWelt ? " aktiv" : "");
+    knopf.dataset.welt = id;
+    knopf.setAttribute("role", "tab");
+    knopf.setAttribute("aria-selected", id === wahlWelt);
+    knopf.innerHTML = `<svg viewBox="0 0 100 100" aria-hidden="true"><use href="#${symbolId(id === "eis" ? 0 : 3, id)}"/></svg>${WELTEN[id].name}`;
+    knopf.addEventListener("click", () => zeigeAufgabenwahl(id));
+    reiter.append(knopf);
+  }
+  const geschafft = ladeGeschafft(wahlWelt);
   const liste = document.getElementById("aufgaben-liste");
   liste.innerHTML = "";
-  AUFGABEN.forEach((auf, nr) => {
+  aufgabenListe(wahlWelt).forEach((auf, nr) => {
     // Freigeschaltet: Aufgabe 1 und jede Aufgabe nach einer geschafften
     const frei = nr === 0 || geschafft.has(nr - 1) || geschafft.has(nr);
     const knopf = document.createElement("button");
@@ -723,8 +774,8 @@ function zeigeAufgabenwahl() {
     knopf.innerHTML =
       `<span class="aufgabe-nummer">${geschafft.has(nr) ? "✓" : frei ? nr + 1 : "🔒"}</span>` +
       `<span class="aufgabe-info"><span class="aufgabe-name">${auf.titel}</span>` +
-      `<span class="aufgabe-icons">${auf.ziele.map(zielIcon).join("")}</span></span>`;
-    if (frei) knopf.addEventListener("click", () => starteAufgabe(nr));
+      `<span class="aufgabe-icons">${auf.ziele.map((ziel) => zielIcon(ziel, wahlWelt)).join("")}</span></span>`;
+    if (frei) knopf.addEventListener("click", () => starteAufgabe(nr, wahlWelt));
     liste.append(knopf);
   });
   zeigeBildschirm("aufgabenwahl");
@@ -750,18 +801,24 @@ function zeigeDialog({ figur = "", titel, text, knoepfe }) {
 function zielListeHtml(mitStand) {
   return `<div class="ziel-liste">${aufgabe.ziele.map((ziel) => {
     const extra = mitStand ? ` – ${Math.min(zielStand(ziel, stand), ziel.anzahl)} geschafft` : "";
-    return `<div class="ziel-zeile">${zielIcon(ziel)}<span>${zielText(ziel)}${extra}</span></div>`;
+    return `<div class="ziel-zeile">${zielIcon(ziel)}<span>${zielText(ziel, weltDaten())}${extra}</span></div>`;
   }).join("")}</div>`;
 }
 
 function zeigeAufgabeVor() {
   const hinweis = aufgabe.ziele.some((z) => z.typ === "befreien")
     ? "<p>Triff die gefangenen Steine oder ihre Nachbarn, bis die Ranken weg sind!</p>" : "";
+  const eisHinweise = [
+    aufgabe.sturm && "<p>❄ Ab und zu zieht ein <b>Schneesturm</b> auf und friert Steine ein! Löse einen gefrorenen Stein einmal auf, dann taut das Eis.</p>",
+    aufgabe.eissteine && "<p>❄ Löse die gefrorenen Steine einmal auf, damit das Eis taut.</p>",
+    aufgabe.felsen && "<p>⛰ Felsbrocken bleiben immer, wo sie sind – die Steine fallen daran vorbei.</p>",
+    welt === "eis" && aufgabe.ziele.some((z) => z.typ === "staebe") && "<p>Löse 4 oder mehr gleiche Steine auf – dann entsteht ein <b>Feuerstab</b>, der eine ganze Spalte auflöst!</p>",
+  ].filter(Boolean).join("");
   const kokos = aufgabe.kokosnuesse
     ? '<p><svg class="mini-kokos" viewBox="0 0 100 100"><use href="#kokosnuss"/></svg> Kokosnüsse lassen sich nicht bewegen. Ein Zauberstab räumt sie ab!</p>' : "";
   zeigeDialog({
     titel: `Aufgabe ${aufgabeNr + 1}: ${aufgabe.titel}`,
-    text: `${zielListeHtml(false)}${hinweis}${kokos}<p>Du hast <b>${aufgabe.zuege} Züge</b>.</p>`,
+    text: `${zielListeHtml(false)}${hinweis}${eisHinweise}${kokos}<p>Du hast <b>${aufgabe.zuege} Züge</b>.</p>`,
     knoepfe: [
       { text: "← Zurück", klasse: "knopf-zart", aktion: zeigeAufgabenwahl },
       { text: "Los geht's!", aktion: () => { schliesseBildschirme(); spielAktiv = true; aktualisiereDracheLeiste(); starteTipp(); } },
@@ -770,7 +827,7 @@ function zeigeAufgabeVor() {
 }
 
 function zeigeErfolg() {
-  const naechste = aufgabeNr + 1 < AUFGABEN.length ? aufgabeNr + 1 : null;
+  const naechste = aufgabeNr + 1 < aufgabenListe().length ? aufgabeNr + 1 : null;
   const knoepfe = [{ text: "☰ Menü", klasse: "knopf-zart", aktion: zeigeAufgabenwahl }];
   if (naechste !== null) knoepfe.push({ text: "Nächste Aufgabe →", aktion: () => starteAufgabe(naechste) });
   else knoepfe.push({ text: "Nochmal", aktion: () => starteAufgabe(aufgabeNr) });
@@ -801,6 +858,51 @@ function zeigeMisserfolg() {
       { text: "Nochmal versuchen", aktion: () => starteAufgabe(aufgabeNr) },
     ],
   });
+}
+
+// ---------- Schneesturm (Eiswelt, nur in Aufgaben mit sturm: true) ----------
+const sturm = { zuegeBis: 0 };
+const zuegeBisSturm = (erstes) => (erstes ? 3 : 4) + Math.floor(Math.random() * (erstes ? 3 : 4));   // 3–5, danach 4–7
+
+// Nach einem gültigen Zug: Zähler herunterzählen, bei 0 zieht ein Schneesturm auf.
+async function sturmNachZug() {
+  if (modus !== "aufgabe" || !aufgabe?.sturm) return;
+  sturm.zuegeBis--;
+  if (sturm.zuegeBis > 0 || zuegeUebrig <= 1) return;   // im letzten Zug keine Überraschung mehr
+  sturm.zuegeBis = zuegeBisSturm(false);
+  await schneesturm();
+}
+
+async function schneesturm() {
+  const anzahl = 3 + Math.floor(Math.random() * 3);     // 3–5 Steine
+  zeigeLob("Schneesturm!");
+  const flocken = document.createElement("div");
+  flocken.className = "sturm";
+  for (let i = 0; i < 46; i++) {
+    const f = document.createElement("span");
+    f.style.left = `${zufall(-5, 100)}%`;
+    f.style.setProperty("--wind", `${zufall(10, 40)}%`);
+    f.style.animationDelay = `${zufall(0, 0.9).toFixed(2)}s`;
+    f.style.fontSize = `${zufall(14, 30).toFixed(0)}px`;
+    f.textContent = "❄";
+    flocken.append(f);
+  }
+  effektEbene.append(flocken);
+  steineEbene.classList.add("sturm-wackeln");
+  await warte(1300);
+  const gefroren = friereSteine(feld, anzahl);
+  for (const zelle of gefroren) {
+    const el = elementBei(zelle);
+    zeigeSchutz(el, feld[zelle[0]][zelle[1]]);
+    el.classList.add("friert");
+    setTimeout(() => el.classList.remove("friert"), 700);
+    const { links, oben } = mitte([zelle]);
+    effekt("ring", links, oben, { "--farbe": "#9fe0ff", "--gross": "2.5" });
+    funkenregen(zelle, "#e8f9ff", 6);
+  }
+  steineEbene.classList.remove("sturm-wackeln");
+  await warte(700);
+  flocken.remove();
 }
 
 // ---------- Spezialherausforderung: Zahlendieb Drache (nur mutige Piratin, nur Aufgaben) ----------
@@ -1048,8 +1150,8 @@ document.getElementById("menue-knopf").addEventListener("click", () => {
 });
 
 document.getElementById("start-endlos").addEventListener("click", starteEndlos);
-document.getElementById("start-aufgaben").addEventListener("click", zeigeAufgabenwahl);
-document.getElementById("wahl-zurueck").addEventListener("click", zeigeMenue);
+document.getElementById("start-aufgaben").addEventListener("click", () => zeigeAufgabenwahl());
+document.getElementById("wahl-zurueck").addEventListener("click", () => zeigeMenue());
 
 setzeStufe(ladeStufe(), false);
 zeigePunkte();
@@ -1060,7 +1162,8 @@ zeigeMenue();
 window.zauberei = {
   get feld() { return feld; }, get beschaeftigt() { return beschaeftigt; }, get punkte() { return punkte; },
   get stand() { return stand; }, get zuege() { return zuegeUebrig; }, get spielAktiv() { return spielAktiv; },
-  starteAufgabe, starteEndlos, setzeStufe, drache, dracheErscheint, gesperrteZeilen,
+  starteAufgabe, starteEndlos, setzeStufe, get welt() { return welt; }, sturm, schneesturm,
+  setzeFeld(f) { feld = f; baueFeldNeu(); aktualisiereLeuchten(); }, drache, dracheErscheint, gesperrteZeilen,
   get groesse() { return GROESSE; },
 };
 

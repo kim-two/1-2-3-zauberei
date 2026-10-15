@@ -75,6 +75,33 @@ Im Startmenü wählt man die Figur; sie gilt für Endlos- und Aufgaben-Modus. Re
 - 3 Versuche. Danach wird eine weitere Reihe gesperrt (höchstens Feldgröße − 3) und es gibt eine neue Aufgabe. Gelöst: alle gesperrten Reihen werden frei
 - „Später“ erlaubt, erst weiterzuspielen; oben zeigt eine Leiste die offene Aufgabe (antippen zum Rechnen). Gibt es wegen der Sperren keinen Zug mehr, muss gerechnet werden
 
+## Welten
+
+In der Aufgabenwahl gibt es für jede Welt einen Reiter. Alle Aufgaben stehen von Anfang an in beiden Welten zur Auswahl; innerhalb einer Welt werden sie nacheinander freigeschaltet. Fortschritt wird je Welt und Stufe gespeichert. Der Endlos-Modus spielt in der Feenwelt.
+
+### Eiswelt (ab v0.8.0)
+
+- **Steine:** Pinguin, Eisbär, Robbe, Eiskristall, Weihnachtskeks (Lebkuchenmann), Schneemann
+- **Feuerstab** statt Zauberstab: entsteht wie der Zauberstab (4 oder mehr gleiche), löst aber die ganze **Spalte** auf
+- **Felsbrocken:** unbeweglich und unzerstörbar (auch der Feuerstab räumt sie nicht ab). Steine fallen an ihnen vorbei
+- **Gefrorene Steine:** Ein Treffer mit dem Stein selbst taut das Eis auf (der Stein bleibt liegen), danach ist er normal. Treffer daneben zählen nicht
+- **Schneesturm:** In Aufgaben mit `sturm: true` zieht nach 3–5 Zügen (danach alle 4–7) ein Sturm auf und friert 3–5 Steine ein; im letzten Zug nicht mehr
+
+| Nr. | Aufgabe | Ziel | Besonderheit | Züge |
+|----:|---------|------|--------------|-----:|
+| 1 | Pinguin-Parade | 16 Pinguine | | 20 |
+| 2 | Plätzchen-Zauber | 1.500 Punkte | | 15 |
+| 3 | Eisbärenhöhle | 13 Eisbären + 13 Robben | | 22 |
+| 4 | Feuerstab-Schule | 4 Feuerstäbe | | 20 |
+| 5 | Der erste Schneesturm | 18 Eiskristalle | Schneesturm | 22 |
+| 6 | Zugefrorener See | 5 gefrorene Steine auftauen | 5 gefroren | 22 |
+| 7 | Felsen-Pass | 18 Robben | 6 Felsbrocken | 22 |
+| 8 | Eisbrecher | 5 auftauen + 12 Pinguine | Sturm, 5 gefroren | 25 |
+| 9 | Lawine! | 3 Feuerstäbe | Sturm, 5 Felsbrocken | 22 |
+| 10 | Die große Polarnacht | 4 auftauen + 14 Weihnachtskekse | Sturm, 4 Felsen, 4 gefroren | 28 |
+
+Neue Welten und Aufgaben: `js/welten.js` (Steine, Texte) und `js/aufgaben.js` (Aufgaben).
+
 ## Aufbau
 
 | Datei / Ordner          | Zweck                                                        |
@@ -86,6 +113,7 @@ Im Startmenü wählt man die Figur; sie gilt für Endlos- und Aufgaben-Modus. Re
 | `js/steine.js`          | Spielsteine, Zauberstab, Ranken und Steinhülle als SVG       |
 | `js/aufgaben.js`        | Liste der Aufgaben, Ziele und Aufgaben-Spielfeld             |
 | `js/figuren.js`         | Einhorn, Fee, Drache und die Köpfe der Schwierigkeitsstufen  |
+| `js/welten.js`          | Welten (Feen-, Eiswelt): Steine, Sonderstab, Texte           |
 | `js/schwierigkeit.js`   | Die drei Stufen (Feldgröße, Regel, Ziel-Faktoren)            |
 | `js/herausforderungen.js` | Rechenaufgaben und Takt des Drachen                        |
 | `sw.js`                 | Service Worker – speichert das Spiel für den Offline-Betrieb |
