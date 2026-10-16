@@ -43,17 +43,17 @@ export const AUFGABEN = [
 // Statt des Zauberstabs gibt es den Feuerstab (löst die ganze Spalte auf).
 // Aufgaben mit Schatzkisten (Feenwelt: Kristalltruhe, Eiswelt: Muschel- und Perlentruhe)
 export const FEEN_SCHATZ_AUFGABEN = [
-  { titel: "Die Kristalltruhe",    zuege: 14, schatzkisten: 2, ziele: [{ typ: "schatz", anzahl: 2 }] },
-  { titel: "Schatz im Garten",     zuege: 16, schatzkisten: 2, ranken: 4, ziele: [{ typ: "schatz", anzahl: 2 }] },
-  { titel: "Kokos-Schatzjagd",     zuege: 20, schatzkisten: 3, kokosnuesse: 4, ziele: [{ typ: "schatz", anzahl: 3 }] },
-  { titel: "Der große Schatz",     zuege: 26, schatzkisten: 3, ranken: 3, kokosnuesse: 3, ziele: [{ typ: "schatz", anzahl: 3 }, { typ: "sammeln", art: 4, anzahl: 12 }] },
+  { titel: "Die Kristalltruhe",    zuege: 28, schatzkisten: 2, ziele: [{ typ: "schatz", anzahl: 2 }] },
+  { titel: "Schatz im Garten",     zuege: 30, schatzkisten: 2, ranken: 4, ziele: [{ typ: "schatz", anzahl: 2 }] },
+  { titel: "Kokos-Schatzjagd",     zuege: 34, schatzkisten: 2, kokosnuesse: 4, ziele: [{ typ: "schatz", anzahl: 2 }] },
+  { titel: "Der große Schatz",     zuege: 44, schatzkisten: 3, ranken: 3, kokosnuesse: 3, ziele: [{ typ: "schatz", anzahl: 3 }, { typ: "sammeln", art: 4, anzahl: 12 }] },
 ];
 
 export const EIS_SCHATZ_AUFGABEN = [
-  { titel: "Perlentaucher",         zuege: 14, schatzkisten: 2, ziele: [{ typ: "schatz", anzahl: 2 }] },
-  { titel: "Muschelschatz im Eis",  zuege: 16, schatzkisten: 2, felsen: 4, ziele: [{ typ: "schatz", anzahl: 2 }] },
-  { titel: "Der gefrorene Schatz",  zuege: 18, schatzkisten: 2, eissteine: 4, sturm: true, ziele: [{ typ: "schatz", anzahl: 2 }] },
-  { titel: "Polarnacht-Schatz",     zuege: 26, schatzkisten: 3, felsen: 4, sturm: true, ziele: [{ typ: "schatz", anzahl: 3 }, { typ: "sammeln", art: 3, anzahl: 12 }] },
+  { titel: "Perlentaucher",         zuege: 26, schatzkisten: 2, ziele: [{ typ: "schatz", anzahl: 2 }] },
+  { titel: "Muschelschatz im Eis",  zuege: 30, schatzkisten: 2, felsen: 4, ziele: [{ typ: "schatz", anzahl: 2 }] },
+  { titel: "Der gefrorene Schatz",  zuege: 30, schatzkisten: 2, eissteine: 4, sturm: true, ziele: [{ typ: "schatz", anzahl: 2 }] },
+  { titel: "Polarnacht-Schatz",     zuege: 44, schatzkisten: 3, felsen: 4, sturm: true, ziele: [{ typ: "schatz", anzahl: 3 }, { typ: "sammeln", art: 3, anzahl: 12 }] },
 ];
 
 export const EIS_AUFGABEN = [
@@ -150,6 +150,8 @@ export function addiereStand(stand, statistik, punkte = 0) {
 
 // Spielfeld für eine Aufgabe: normales Feld, dazu gefangene Steine
 // (nicht in der obersten Reihe, gleichmäßig verteilt).
+const SCHATZ_ZEILE = 2;   // Startreihe der Schatzkisten (0 = ganz oben)
+
 export function erzeugeAufgabenFeld(aufgabe, groesse, arten, zufall = Math.random) {
   for (let versuch = 0; ; versuch++) {
     const feld = baueAufgabenFeld(aufgabe, groesse, arten, zufall);
@@ -159,8 +161,19 @@ export function erzeugeAufgabenFeld(aufgabe, groesse, arten, zufall = Math.rando
 
 function baueAufgabenFeld(aufgabe, groesse, arten, zufall) {
   const feld = erzeugeFeld(groesse, arten, zufall);
+  // Schatzkisten: im oberen Bereich (Reihe 3), in verschiedenen Spalten
+  const spalten = Array.from({ length: groesse }, (_, s) => s);
+  for (let i = spalten.length - 1; i > 0; i--) {
+    const j = Math.floor(zufall() * (i + 1));
+    [spalten[i], spalten[j]] = [spalten[j], spalten[i]];
+  }
+  const kisten = spalten.slice(0, aufgabe.schatzkisten || 0);
+  kisten.forEach((s) => { feld[SCHATZ_ZEILE][s].schatz = true; });
+  // Alle anderen Hindernisse liegen auf freien Feldern (nicht in der obersten Reihe, nicht auf einer Kiste)
   const zellen = [];
-  for (let z = 1; z < groesse; z++) for (let s = 0; s < groesse; s++) zellen.push([z, s]);
+  for (let z = 1; z < groesse; z++) for (let s = 0; s < groesse; s++) {
+    if (!(z === SCHATZ_ZEILE && kisten.includes(s))) zellen.push([z, s]);
+  }
   for (let i = zellen.length - 1; i > 0; i--) {
     const j = Math.floor(zufall() * (i + 1));
     [zellen[i], zellen[j]] = [zellen[j], zellen[i]];
@@ -171,13 +184,6 @@ function baueAufgabenFeld(aufgabe, groesse, arten, zufall) {
     feld[z][s].gefangen = true;
     feld[z][s].schutz = i < huellen ? 3 : 2;
   });
-  // Schatzkisten: oben, in verschiedenen Spalten
-  const spalten = Array.from({ length: groesse }, (_, s) => s);
-  for (let i = spalten.length - 1; i > 0; i--) {
-    const j = Math.floor(zufall() * (i + 1));
-    [spalten[i], spalten[j]] = [spalten[j], spalten[i]];
-  }
-  spalten.slice(0, aufgabe.schatzkisten || 0).forEach((s) => { feld[0][s].schatz = true; });
   // Kokosnüsse auf anderen Feldern (nicht in der obersten Reihe)
   let nr = huellen + ranken;
   zellen.slice(nr, nr += (aufgabe.eissteine || 0)).forEach(([z, s]) => {

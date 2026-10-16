@@ -37,16 +37,9 @@ export function neuerStein(arten, zufall = Math.random) {
   return { id: naechsteId++, art: Math.floor(zufall() * arten) };
 }
 
-// Läßt sich ein Stein per Tausch verschieben? (nicht: gesperrt, Kokosnuss, Fels; die Schatzkiste schon –
-// Tausch mit der Kiste: siehe istSchatzTausch)
+// Läßt sich ein Stein per Tausch verschieben? (nicht: gesperrt, Kokosnuss, Fels; die Schatzkiste schon,
+// aber nur, wenn der Tausch einen Treffer ergibt)
 export const bewegbar = (stein) => !stein.gesperrt && !stein.kokos && !stein.fels;
-
-// Schatzkisten lassen sich mit jedem normalen Nachbarn tauschen, auch ohne dass dabei ein Treffer entsteht
-// (so kann man sie gezielt nach unten ziehen). Das kostet trotzdem einen Zug.
-export function istSchatzTausch(feld, [z1, s1], [z2, s2]) {
-  const a = feld[z1][s1], b = feld[z2][s2];
-  return Boolean(a.schatz) !== Boolean(b.schatz) && bewegbar(a) && bewegbar(b);
-}
 
 // Beim Mischen bleiben auch Schatzkisten, wo sie sind (sonst könnte das Mischen sie nach unten würfeln)
 const mischbar = (stein) => bewegbar(stein) && !stein.schatz;
@@ -266,7 +259,7 @@ export function findeSchaetzeUnten(feld) {
   const zellen = [];
   feld.forEach((reihe, z) => reihe.forEach((stein, s) => {
     if (!stein?.schatz) return;
-    for (let z2 = z + 1; z2 < feld.length; z2++) if (!fest(feld[z2][s])) return;
+    for (let z2 = z + 1; z2 < feld.length; z2++) if (!fest(feld[z2][s]) && !feld[z2][s].kokos) return;
     zellen.push([z, s]);
   }));
   return zellen;
@@ -382,7 +375,6 @@ export function findeAlleTreffer(feld) {
 // Gesperrte Steine lassen sich nicht tauschen.
 export function findeMoeglichenZug(feld) {
   const n = feld.length;
-  let kistenZug = null;
   for (let z = 0; z < n; z++) {
     for (let s = 0; s < n; s++) {
       for (const [dz, ds] of [[0, 1], [1, 0]]) {
@@ -392,20 +384,11 @@ export function findeMoeglichenZug(feld) {
         tausche(feld, [z, s], [z2, s2]);
         const treffer = findeAlleTreffer(feld).length > 0;
         tausche(feld, [z, s], [z2, s2]);
-        if (treffer && !istSchatzTausch(feld, [z, s], [z2, s2])) return [[z, s], [z2, s2]];
-        if (treffer) kistenZug ??= [[z, s], [z2, s2]];       // Kiste mit Treffer: nur Notlösung
+        if (treffer) return [[z, s], [z2, s2]];
       }
     }
   }
-  return kistenZug || kistenNachUnten(feld);
-
-  // Ohne Treffer-Zug bleibt das Ziehen einer Kiste nach unten (immer erlaubt)
-  function kistenNachUnten(f) {
-    for (let z = 0; z < n - 1; z++) for (let s = 0; s < n; s++) {
-      if (f[z][s].schatz && bewegbar(f[z + 1][s]) && !f[z + 1][s].schatz) return [[z, s], [z + 1, s]];
-    }
-    return null;
-  }
+  return null;
 }
 
 // Entfernt Steine, lässt die übrigen nach unten fallen und füllt oben auf.

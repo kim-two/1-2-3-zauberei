@@ -54,14 +54,14 @@ eine Aufgabe wird freigeschaltet, wenn die vorherige geschafft ist (Fortschritt 
 | 14 | Kokos im Garten | 6 Steine aus Ranken befreien (4 Kokosnüsse) | 19 |
 | 15 | Die große Kokosernte | 7 Steine befreien + 12 Sterne (6 Kokosnüsse) | 26 |
 
-| 16 | Die Kristalltruhe | 2 Schatzkisten nach unten bringen | | 14 |
-| 17 | Schatz im Garten | 2 Schatzkisten | 4 Ranken | 16 |
-| 18 | Kokos-Schatzjagd | 3 Schatzkisten | 4 Kokosnüsse | 20 |
-| 19 | Der große Schatz | 3 Schatzkisten + 12 Blumen | 3 Ranken, 3 Kokosnüsse | 26 |
+| 16 | Die Kristalltruhe | 2 Schatzkisten nach unten bringen | | 28 |
+| 17 | Schatz im Garten | 2 Schatzkisten | 4 Ranken | 30 |
+| 18 | Kokos-Schatzjagd | 2 Schatzkisten | 4 Kokosnüsse | 34 |
+| 19 | Der große Schatz | 3 Schatzkisten + 12 Blumen | 3 Ranken, 3 Kokosnüsse | 44 |
 
-**Schatzkisten** (ab v0.9.0): Die Kisten liegen oben und müssen ganz nach unten gebracht werden (Ziel „Bringe N Schatzkisten nach unten“, `schatzkisten` in `js/aufgaben.js`).
-Sie nehmen an keiner Reihe teil, fallen aber, wenn darunter Steine verschwinden. Man kann sie auch mit einem Nachbarn tauschen – das geht ohne Treffer, kostet aber einen Zug.
-Unten angekommen (kein freies Feld mehr darunter) wird die Kiste eingesammelt. Zauber- und Feuerstab räumen Kisten nie ab; beim Mischen bleiben sie liegen.
+**Schatzkisten** (ab v0.9.0): Die Kisten liegen zu Beginn in der 3. Reihe von oben und müssen ganz nach unten gebracht werden (Ziel „Bringe N Schatzkisten nach unten“, `schatzkisten` in `js/aufgaben.js`).
+Sie nehmen an keiner Reihe teil und lassen sich nicht von Hand verschieben (nur im Tausch, der einen Treffer ergibt); sie fallen, wenn darunter Steine verschwinden – man muss also unter ihnen Reihen auflösen.
+Unten angekommen (kein freies Feld mehr darunter; Felsbrocken und Kokosnüsse darunter zählen als Boden) wird die Kiste eingesammelt. Zauber- und Feuerstab räumen Kisten nie ab; beim Mischen bleiben sie liegen.
 Nach geschaffter Aufgabe zeigt der Erfolgs-Dialog die Kiste: antippen, dann öffnet sie sich – in der Feenwelt voller funkelnder Kristalle, in der Eiswelt voller Muscheln und Perlen.
 
 **Kokosnuss** (ab v0.7.0): Hindernis in den Aufgaben 11–15 (`kokosnuesse` in `js/aufgaben.js`; die Aufgaben 1–10 haben keine).
@@ -116,10 +116,10 @@ Schatz-Aufgaben der Eiswelt (Muschel- und Perlentruhe):
 
 | Nr. | Aufgabe | Ziel | Besonderheit | Züge |
 |----:|---------|------|--------------|-----:|
-| 11 | Perlentaucher | 2 Schatzkisten | | 14 |
-| 12 | Muschelschatz im Eis | 2 Schatzkisten | 4 Felsbrocken | 16 |
-| 13 | Der gefrorene Schatz | 2 Schatzkisten | Sturm, 4 gefroren | 18 |
-| 14 | Polarnacht-Schatz | 3 Schatzkisten + 12 Eiskristalle | Sturm, 4 Felsbrocken | 26 |
+| 11 | Perlentaucher | 2 Schatzkisten | | 26 |
+| 12 | Muschelschatz im Eis | 2 Schatzkisten | 4 Felsbrocken | 30 |
+| 13 | Der gefrorene Schatz | 2 Schatzkisten | Sturm, 4 gefroren | 30 |
+| 14 | Polarnacht-Schatz | 3 Schatzkisten + 12 Eiskristalle | Sturm, 4 Felsbrocken | 44 |
 
 Neue Welten und Aufgaben: `js/welten.js` (Steine, Texte) und `js/aufgaben.js` (Aufgaben).
 

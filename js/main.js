@@ -1,9 +1,9 @@
 // Einstiegspunkt des Spiels: Darstellung, Touch-Steuerung und Effekte.
 // Die Versionsnummer muss mit CACHE_VERSION in sw.js übereinstimmen.
-const VERSION = "0.10.0";
+const VERSION = "0.10.1";
 
 import {
-  erzeugeFeld, setzeMinLaenge, setzeStabRichtung, friereSteine, bewegbar, istSchatzTausch, findeSchaetzeUnten, sammleSchaetze, findeMoeglichenZug, sindNachbarn, tausche, mische,
+  erzeugeFeld, setzeMinLaenge, setzeStabRichtung, friereSteine, bewegbar, findeSchaetzeUnten, sammleSchaetze, findeMoeglichenZug, sindNachbarn, tausche, mische,
   berechneAufloesung, findeAlleTreffer, berechnePunkte, wendeAufloesungAn,
 } from "./board.js";
 import { SVG_DEFS } from "./steine.js";
@@ -466,7 +466,7 @@ async function versucheTausch(a, b) {
   setzePosition(elB, a[0], a[1]);
   await warte(220);
 
-  if (findeAlleTreffer(feld).length === 0 && !istSchatzTausch(feld, a, b)) {
+  if (findeAlleTreffer(feld).length === 0) {
     // Kein Treffer: zurücktauschen und kurz wackeln
     tausche(feld, a, b);
     setzePosition(elA, a[0], a[1]);
