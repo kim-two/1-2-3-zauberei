@@ -68,6 +68,8 @@ Nach geschaffter Aufgabe zeigt der Erfolgs-Dialog die Kiste: antippen, dann öff
 Sie nimmt an keiner Reihe teil, lässt sich nicht tauschen (wackelt nur), fällt aber nach unten, wenn darunter Steine verschwinden.
 Nur ein Zauberstab räumt sie ab, wenn ihre Reihe aufgelöst wird. Die junge Fee hat nur halb so viele Kokosnüsse.
 
+**Sternewertung** (ab v0.10.0): Jede Aufgabe wird mit 1–3 Sternen bewertet, abhängig von den übrigen Zügen (`berechneSterne` in `js/aufgaben.js`): 1 Stern = geschafft (auch mit 0 Zügen übrig), 2 Sterne = mindestens 20 % der Züge übrig, 3 Sterne = mindestens 45 % übrig. Die beste Wertung wird je Welt und Schwierigkeit gespeichert (`zauberei-sterne…`) und in der Aufgabenliste gezeigt; vor jeder Aufgabe stehen die nötigen übrigen Züge. Ältere, vor v0.10.0 geschaffte Aufgaben zeigen nur ein ✓, bis sie erneut gespielt werden.
+
 ## Schwierigkeit
 
 Im Startmenü wählt man die Figur; sie gilt für Endlos- und Aufgaben-Modus. Rekord und Aufgaben-Fortschritt werden je Stufe gespeichert.

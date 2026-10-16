@@ -1027,3 +1027,16 @@ body[data-welt="eis"] #landschaft { filter: sepia(0.9) hue-rotate(158deg) satura
 .kiste-hinweis { margin: 8px 0 0; }
 @keyframes kiste-wackeln { 0%, 60%, 100% { transform: rotate(0); } 70% { transform: rotate(-4deg); } 80% { transform: rotate(4deg); } 90% { transform: rotate(-3deg); } }
 @keyframes kiste-auf { 0% { transform: scale(0.85); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
+
+/* ---------- Sternewertung ---------- */
+.sterne { display: inline-flex; gap: 2px; }
+.stern { color: #d9cdea; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.08); }
+.stern.an { color: #ffc93c; text-shadow: 0 0 6px rgba(255, 201, 60, 0.8), 0 1px 0 #b07a00; }
+.sterne.klein { font-size: 1.05rem; }
+.sterne.gross { font-size: 3rem; }
+.sterne.gross .stern.an { animation: stern-pop 0.6s cubic-bezier(.3, 1.6, .5, 1) both; animation-delay: calc(0.35s * var(--i)); }
+@keyframes stern-pop { 0% { transform: scale(0) rotate(-90deg); opacity: 0; } 100% { transform: scale(1) rotate(0); opacity: 1; } }
+.sterne-block { margin: 6px 0; text-align: center; }
+.sterne-block p { margin: 2px 0 0; }
+.sterne-info { font-size: 0.95rem; line-height: 1.5; }
+.aufgabe-info .sterne { margin-top: 2px; }

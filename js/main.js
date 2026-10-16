@@ -1,6 +1,6 @@
 // Einstiegspunkt des Spiels: Darstellung, Touch-Steuerung und Effekte.
 // Die Versionsnummer muss mit CACHE_VERSION in sw.js übereinstimmen.
-const VERSION = "0.9.0";
+const VERSION = "0.10.0";
 
 import {
   erzeugeFeld, setzeMinLaenge, setzeStabRichtung, friereSteine, bewegbar, istSchatzTausch, findeSchaetzeUnten, sammleSchaetze, findeMoeglichenZug, sindNachbarn, tausche, mische,
@@ -10,7 +10,7 @@ import { SVG_DEFS } from "./steine.js";
 import { WELTEN, WELT_REIHENFOLGE } from "./welten.js";
 import { SCHWIERIGKEITEN, REIHENFOLGE, STANDARD, schluessel } from "./schwierigkeit.js";
 import {
-  aufgabeFuerStufe, zielText, zielStand, istGeschafft, leererStand, addiereStand, erzeugeAufgabenFeld,
+  aufgabeFuerStufe, berechneSterne, sterneGrenzen, zielText, zielStand, istGeschafft, leererStand, addiereStand, erzeugeAufgabenFeld,
 } from "./aufgaben.js";
 import { EINHORN_SVG, FEE_SVG, DRACHE_SVG, STUFEN_BILD, KISTE_ZU, KISTE_OFFEN } from "./figuren.js";
 import { erzeugeRechenaufgabe, leseAntwort, zuegeBisDrache } from "./herausforderungen.js";
@@ -22,8 +22,10 @@ const TIPP_NACH_MS = 6000;           // nach so langer Pause zeigt das Spiel ein
 const LOB_KETTE = ["Toll!", "Super!", "Fantastisch!", "Zauberhaft!"]; // 2., 3., 4., 5.+ Kettenreaktion
 const REKORD_BASIS = "zauberei-rekord";
 const FORTSCHRITT_BASIS = "zauberei-aufgaben";       // Liste der geschafften Aufgaben (Eiswelt: Endung -eis)
+const STERNE_BASIS = "zauberei-sterne";                // beste Sternewertung je Aufgabe (Objekt Nr → Sterne)
 const STUFE_SCHLUESSEL = "zauberei-stufe";           // zuletzt gewählte Schwierigkeit
 const rekordSchluessel = () => schluessel(REKORD_BASIS, stufe.id);
+const sterneSchluessel = (w = welt) => schluessel(w === "feen" ? STERNE_BASIS : `${STERNE_BASIS}-${w}`, stufe.id);
 const fortschrittSchluessel = (w = welt) => schluessel(w === "feen" ? FORTSCHRITT_BASIS : `${FORTSCHRITT_BASIS}-${w}`, stufe.id);
 
 // ---------- Elemente ----------
@@ -675,7 +677,9 @@ function pruefeAufgabenEnde() {
     spielAktiv = false;
     beschaeftigt = false;
     speichereGeschafft(aufgabeNr);
-    setTimeout(zeigeErfolg, 500);
+    const sterne = berechneSterne(aufgabe.zuege, zuegeUebrig);
+    const bestwert = speichereSterne(aufgabeNr, sterne);
+    setTimeout(() => zeigeErfolg(sterne, bestwert), 500);
     return true;
   }
   if (zuegeUebrig <= 0) {
@@ -694,6 +698,32 @@ function ladeGeschafft(w = welt) {
     return new Set();
   }
 }
+
+function ladeSterne(w = welt) {
+  try {
+    return JSON.parse(localStorage.getItem(sterneSchluessel(w)) || "{}") || {};
+  } catch {
+    return {};
+  }
+}
+
+// Merkt sich die beste Wertung; liefert true, wenn sie besser als die bisherige ist.
+function speichereSterne(nr, sterne) {
+  const alle = ladeSterne();
+  const besser = sterne > (alle[nr] || 0);
+  if (besser) {
+    alle[nr] = sterne;
+    try {
+      localStorage.setItem(sterneSchluessel(), JSON.stringify(alle));
+    } catch {
+      // Speichern nicht möglich – Spiel läuft trotzdem.
+    }
+  }
+  return besser;
+}
+
+const sterneHtml = (n, klasse = "") =>
+  `<span class="sterne ${klasse}" aria-label="${n} von 3 Sternen">${[1, 2, 3].map((i) => `<span class="stern${i <= n ? " an" : ""}" style="--i:${i}">★</span>`).join("")}</span>`;
 
 function speichereGeschafft(nr) {
   const geschafft = ladeGeschafft();
@@ -798,6 +828,7 @@ function zeigeAufgabenwahl(w = wahlWelt) {
     reiter.append(knopf);
   }
   const geschafft = ladeGeschafft(wahlWelt);
+  const sterneAlle = ladeSterne(wahlWelt);
   const liste = document.getElementById("aufgaben-liste");
   liste.innerHTML = "";
   aufgabenListe(wahlWelt).forEach((auf, nr) => {
@@ -809,7 +840,8 @@ function zeigeAufgabenwahl(w = wahlWelt) {
     knopf.innerHTML =
       `<span class="aufgabe-nummer">${geschafft.has(nr) ? "✓" : frei ? nr + 1 : "🔒"}</span>` +
       `<span class="aufgabe-info"><span class="aufgabe-name">${auf.titel}</span>` +
-      `<span class="aufgabe-icons">${auf.ziele.map((ziel) => zielIcon(ziel, wahlWelt)).join("")}</span></span>`;
+      `<span class="aufgabe-icons">${auf.ziele.map((ziel) => zielIcon(ziel, wahlWelt)).join("")}</span>` +
+      (sterneAlle[nr] ? sterneHtml(sterneAlle[nr], "klein") : "") + `</span>`;
     if (frei) knopf.addEventListener("click", () => starteAufgabe(nr, wahlWelt));
     liste.append(knopf);
   });
@@ -851,11 +883,13 @@ function zeigeAufgabeVor() {
   ].filter(Boolean).join("");
   const schatz = aufgabe.schatzkisten
     ? `<p><svg class="mini-kokos" viewBox="0 0 100 100"><use href="#schatz-${welt === "eis" ? "eis" : "feen"}"/></svg> Bringe die Schatzkiste ganz nach unten: Tausche sie mit einem Nachbarn (das kostet einen Zug) oder löse Steine unter ihr auf, dann fällt sie!</p>` : "";
+  const grenzen = sterneGrenzen(aufgabe.zuege);
+  const sterneHinweis = `<p class="sterne-info">${sterneHtml(3, "klein")} ab ${grenzen.drei} übrigen Zügen<br>${sterneHtml(2, "klein")} ab ${grenzen.zwei} übrigen Zügen</p>`;
   const kokos = aufgabe.kokosnuesse
     ? '<p><svg class="mini-kokos" viewBox="0 0 100 100"><use href="#kokosnuss"/></svg> Kokosnüsse lassen sich nicht bewegen. Ein Zauberstab räumt sie ab!</p>' : "";
   zeigeDialog({
     titel: `Aufgabe ${aufgabeNr + 1}: ${aufgabe.titel}`,
-    text: `${zielListeHtml(false)}${hinweis}${eisHinweise}${schatz}${kokos}<p>Du hast <b>${aufgabe.zuege} Züge</b>.</p>`,
+    text: `${zielListeHtml(false)}${hinweis}${eisHinweise}${schatz}${kokos}<p>Du hast <b>${aufgabe.zuege} Züge</b>.</p>${sterneHinweis}`,
     knoepfe: [
       { text: "← Zurück", klasse: "knopf-zart", aktion: zeigeAufgabenwahl },
       { text: "Los geht's!", aktion: () => { schliesseBildschirme(); spielAktiv = true; aktualisiereDracheLeiste(); starteTipp(); } },
@@ -863,22 +897,25 @@ function zeigeAufgabeVor() {
   });
 }
 
-function zeigeErfolg() {
+function zeigeErfolg(sterne = 1, bestwert = false) {
   const naechste = aufgabeNr + 1 < aufgabenListe().length ? aufgabeNr + 1 : null;
   const knoepfe = [{ text: "☰ Menü", klasse: "knopf-zart", aktion: zeigeAufgabenwahl }];
   if (naechste !== null) knoepfe.push({ text: "Nächste Aufgabe →", aktion: () => starteAufgabe(naechste) });
   else knoepfe.push({ text: "Nochmal", aktion: () => starteAufgabe(aufgabeNr) });
   const rest = zuegeUebrig > 0 ? ` Und du hattest sogar noch <b>${zuegeUebrig} ${zuegeUebrig === 1 ? "Zug" : "Züge"}</b> übrig!` : "";
+  const sterneBlock = `<div class="sterne-block">${sterneHtml(sterne, "gross")}` +
+    `<p>${sterne === 3 ? "Drei Sterne – einfach fantastisch!" : sterne === 2 ? "Zwei Sterne – richtig gut!" : "Ein Stern – geschafft! Mit mehr Zügen übrig gibt es mehr Sterne."}` +
+    `${bestwert && sterne > 1 ? " <b>Neue Bestwertung!</b>" : ""}</p></div>`;
   const eis = welt === "eis";
   const mitSchatz = Boolean(aufgabe.schatzkisten);
   zeigeDialog({
     figur: mitSchatz ? `<button type="button" class="kiste-knopf" aria-label="Schatzkiste öffnen">${KISTE_ZU(eis)}</button>` : EINHORN_SVG,
     titel: mitSchatz ? "Du hast den Schatz gerettet!" : naechste === null ? "Du bist eine Zaubermeisterin!" : "Wunderbar gemacht!",
     text: mitSchatz
-      ? `„${aufgabe.titel}“ ist geschafft!${rest}<p class="kiste-hinweis"><b>Tippe auf die Kiste</b> und schau, was drin ist!</p>`
+      ? `„${aufgabe.titel}“ ist geschafft!${rest}${sterneBlock}<p class="kiste-hinweis"><b>Tippe auf die Kiste</b> und schau, was drin ist!</p>`
       : naechste === null
-        ? `Du hast alle Aufgaben geschafft. Das Einhorn ist mächtig stolz auf dich!${rest}`
-        : `Das Einhorn gratuliert dir: Du hast „${aufgabe.titel}“ geschafft!${rest}`,
+        ? `Du hast alle Aufgaben geschafft. Das Einhorn ist mächtig stolz auf dich!${rest}${sterneBlock}`
+        : `Das Einhorn gratuliert dir: Du hast „${aufgabe.titel}“ geschafft!${rest}${sterneBlock}`,
     knoepfe,
   });
   if (mitSchatz) {
@@ -1216,6 +1253,8 @@ window.zauberei = {
   starteAufgabe, starteEndlos, setzeStufe, get welt() { return welt; }, sturm, schneesturm,
   setzeFeld(f) { feld = f; baueFeldNeu(); aktualisiereLeuchten(); }, drache, dracheErscheint, gesperrteZeilen,
   get groesse() { return GROESSE; },
+  testErfolg(p, uebrig) { punkte = p; zuegeUebrig = uebrig; return pruefeAufgabenEnde(); },
+  ladeSterne,
 };
 
 // ---------- Offline-Unterstützung & Updates ----------

@@ -108,6 +108,18 @@ export function zielText(ziel, welt = {}) {
   }
 }
 
+// Sternewertung: Je mehr Züge übrig bleiben, desto mehr Sterne.
+// 1 Stern: geschafft (auch mit genau der erlaubten Zügezahl), 2 Sterne: mindestens 20 % der Züge übrig,
+// 3 Sterne: mindestens 45 % übrig.
+export function sterneGrenzen(zuege) {
+  return { zwei: Math.max(1, Math.ceil(zuege * 0.2)), drei: Math.max(2, Math.ceil(zuege * 0.45)) };
+}
+
+export function berechneSterne(zuege, uebrig) {
+  const g = sterneGrenzen(zuege);
+  return uebrig >= g.drei ? 3 : uebrig >= g.zwei ? 2 : 1;
+}
+
 // Fortschritt eines Ziels aus den gesammelten Werten
 export function zielStand(ziel, stand) {
   switch (ziel.typ) {
