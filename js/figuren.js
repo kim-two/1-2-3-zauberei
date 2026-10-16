@@ -144,6 +144,59 @@ export const DRACHE_SVG = `
   </g>
 </svg>`;
 
+// Schatzkiste für den Erfolgs-Dialog: erst geschlossen (antippen!), dann offen mit dem Schatz.
+// Feenwelt: funkelnde Kristalle. Eiswelt: Muscheln und Perlen.
+const KISTE_UNTEN = (eis) => `
+  <rect x="30" y="118" width="160" height="82" rx="10" fill="url(#${eis ? "v-eisholz" : "v-holz"})" stroke="${eis ? "#3f7fae" : "#5e3410"}" stroke-width="6"/>
+  <g fill="${eis ? "#c9d6e6" : "#ffd23f"}" stroke="${eis ? "#6c86a6" : "#b07a00"}" stroke-width="4">
+    <rect x="30" y="112" width="160" height="16"/><rect x="52" y="128" width="16" height="72"/><rect x="152" y="128" width="16" height="72"/>
+  </g>`;
+
+export const KISTE_ZU = (eis) => `
+<svg viewBox="0 0 220 220" class="figur kiste" role="img" aria-label="Geschlossene Schatzkiste">
+  ${KISTE_UNTEN(eis)}
+  <path d="M30 118 Q30 52 110 52 Q190 52 190 118 Z" fill="url(#${eis ? "v-eisholz" : "v-holz"})" stroke="${eis ? "#3f7fae" : "#5e3410"}" stroke-width="6" stroke-linejoin="round"/>
+  <g fill="${eis ? "#c9d6e6" : "#ffd23f"}" stroke="${eis ? "#6c86a6" : "#b07a00"}" stroke-width="4">
+    <rect x="52" y="58" width="16" height="62"/><rect x="152" y="58" width="16" height="62"/>
+  </g>
+  ${eis
+    ? '<path d="M110 150 Q86 142 86 124 Q86 108 110 104 Q134 108 134 124 Q134 142 110 150 Z" fill="#ffd6e6" stroke="#c46a96" stroke-width="5"/><path d="M110 150 V108 M98 146 L92 112 M122 146 L128 112" stroke="#c46a96" stroke-width="3" fill="none"/>'
+    : '<polygon points="110,108 130,128 110,158 90,128" fill="#ff6fae" stroke="#b81e6a" stroke-width="5" stroke-linejoin="round"/><path d="M100 124 L110 114" stroke="#fff" stroke-width="5" stroke-linecap="round"/>'}
+</svg>`;
+
+export const KISTE_OFFEN = (eis) => `
+<svg viewBox="0 0 220 220" class="figur kiste offen" role="img" aria-label="Offene Schatzkiste mit ${eis ? "Muscheln und Perlen" : "funkelnden Kristallen"}">
+  <!-- Deckel hinten, aufgeklappt -->
+  <path d="M36 112 Q30 30 110 24 Q190 30 184 112 Z" fill="url(#${eis ? "v-eisholz" : "v-holz"})" stroke="${eis ? "#3f7fae" : "#5e3410"}" stroke-width="6" stroke-linejoin="round" opacity=".9"/>
+  <!-- Lichtschein -->
+  <g opacity=".55" stroke="${eis ? "#e8f9ff" : "#fff3b0"}" stroke-width="6" stroke-linecap="round">
+    <path d="M110 112 L110 30"/><path d="M80 112 L50 44"/><path d="M140 112 L170 44"/><path d="M62 118 L16 92"/><path d="M158 118 L204 92"/>
+  </g>
+  ${KISTE_UNTEN(eis)}
+  <!-- Schatz -->
+  ${eis ? `
+  <g stroke="#c46a96" stroke-width="3">
+    <circle cx="78" cy="108" r="17" fill="#fff"/><circle cx="108" cy="98" r="19" fill="#ffe3f0"/><circle cx="140" cy="108" r="17" fill="#f3f0ff"/>
+    <circle cx="96" cy="122" r="15" fill="#fff"/><circle cx="124" cy="124" r="15" fill="#fff4fa"/>
+  </g>
+  <g fill="#fff" opacity=".9"><circle cx="72" cy="101" r="5"/><circle cx="102" cy="90" r="5"/><circle cx="134" cy="101" r="5"/></g>
+  <path d="M44 120 Q40 96 66 92 Q84 98 82 120 Z" fill="#ffd6e6" stroke="#c46a96" stroke-width="4"/>
+  <path d="M63 118 V96 M54 116 L51 100 M72 116 L75 100" stroke="#c46a96" stroke-width="2.5" fill="none"/>
+  <path d="M146 122 Q152 94 176 98 Q182 112 172 122 Z" fill="#bfe8ff" stroke="#3f7fae" stroke-width="4"/>
+  <path d="M158 120 Q158 106 166 100" stroke="#3f7fae" stroke-width="2.5" fill="none"/>`
+  : `
+  <g stroke-width="4" stroke-linejoin="round">
+    <polygon points="62,118 84,86 106,118 84,134" fill="#ff6fae" stroke="#b81e6a"/>
+    <polygon points="100,112 126,70 152,112 126,132" fill="#5fd0ff" stroke="#1a7fd6"/>
+    <polygon points="132,120 154,90 176,120 154,136" fill="#ffd23f" stroke="#c77800"/>
+    <polygon points="90,126 108,100 126,126 108,138" fill="#a970ff" stroke="#5a24b8"/>
+  </g>
+  <g fill="#fff" opacity=".85"><path d="M76 98 L84 92" stroke="#fff" stroke-width="5" stroke-linecap="round"/><path d="M118 88 L126 82" stroke="#fff" stroke-width="5" stroke-linecap="round"/></g>`}
+  <g fill="#fff" stroke="${eis ? "#7fc8f0" : "#ffd23f"}" stroke-width="2">
+    <path d="M40 40 l4 10 10 4 -10 4 -4 10 -4 -10 -10 -4 10 -4z"/><path d="M180 36 l3 8 8 3 -8 3 -3 8 -3 -8 -8 -3 8 -3z"/><path d="M110 8 l3 8 8 3 -8 3 -3 8 -3 -8 -8 -3 8 -3z"/>
+  </g>
+</svg>`;
+
 // Kleine Köpfe für die Schwierigkeitswahl im Menü
 const GESICHT = (haar, extra = "", unten = "") => `
 <svg viewBox="0 0 100 100" class="stufen-bild" aria-hidden="true">

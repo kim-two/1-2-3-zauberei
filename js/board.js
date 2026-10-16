@@ -5,6 +5,8 @@
 //   schutz, gefangen – Ranken/Steinhülle (Aufgaben-Modus)
 //   kokos            – Kokosnuss: nimmt an nichts teil, lässt sich nicht tauschen, fällt aber nach unten;
 //                      nur ein Zauberstab-Strahl räumt sie ab
+//   schatz           – Schatzkiste: nimmt an keiner Reihe teil, lässt sich aber mit jedem Nachbarn tauschen (auch ohne Treffer); fällt nach unten;
+//                      ganz unten angekommen, wird sie eingesammelt (verschwindet, zählt für das Ziel)
 //   fels             – Felsbrocken (Eiswelt): unbeweglich und unzerstörbar; Steine fallen „durch“ ihn hindurch
 //   eis              – gefroren (Schutz 1): muss einmal aufgelöst werden, dann taut das Eis (Steine bleibt liegen)
 //   gesperrt         – vom Drachen gesperrt: nimmt an nichts teil und bleibt, wo er ist
@@ -35,8 +37,19 @@ export function neuerStein(arten, zufall = Math.random) {
   return { id: naechsteId++, art: Math.floor(zufall() * arten) };
 }
 
-// Läßt sich ein Stein per Tausch verschieben? (nicht: gesperrt, Kokosnuss)
+// Läßt sich ein Stein per Tausch verschieben? (nicht: gesperrt, Kokosnuss, Fels; die Schatzkiste schon –
+// Tausch mit der Kiste: siehe istSchatzTausch)
 export const bewegbar = (stein) => !stein.gesperrt && !stein.kokos && !stein.fels;
+
+// Schatzkisten lassen sich mit jedem normalen Nachbarn tauschen, auch ohne dass dabei ein Treffer entsteht
+// (so kann man sie gezielt nach unten ziehen). Das kostet trotzdem einen Zug.
+export function istSchatzTausch(feld, [z1, s1], [z2, s2]) {
+  const a = feld[z1][s1], b = feld[z2][s2];
+  return Boolean(a.schatz) !== Boolean(b.schatz) && bewegbar(a) && bewegbar(b);
+}
+
+// Beim Mischen bleiben auch Schatzkisten, wo sie sind (sonst könnte das Mischen sie nach unten würfeln)
+const mischbar = (stein) => bewegbar(stein) && !stein.schatz;
 
 // Feste Zellen: der Stein bleibt dort für immer (oder bis zur Freigabe) – Steine fallen „durch“ sie hindurch
 const fest = (stein) => Boolean(stein) && (stein.gesperrt || stein.fels);
@@ -63,7 +76,7 @@ export function friereSteine(feld, anzahl, zufall = Math.random) {
 }
 
 // Stein, der mitspielen darf (vorhanden und nicht gesperrt)
-const aktiv = (stein) => Boolean(stein) && !stein.gesperrt && !stein.kokos && !stein.fels;
+const aktiv = (stein) => Boolean(stein) && !stein.gesperrt && !stein.kokos && !stein.fels && !stein.schatz;
 
 // Länge der Reihe gleicher Steine, die direkt links/oberhalb von (z, s) endet (ohne (z, s) selbst).
 function laufLinks(feld, z, s, art) {
@@ -177,7 +190,7 @@ export function berechneAufloesung(feld, gruppen, bevorzugt = []) {
     ausgeloest.push([z, s]);
     for (let k = 0; k < (stabSpalte ? feld.length : feld[z].length); k++) {
       const [z2, s2] = stabSpalte ? [k, s] : [z, k];      // Feuerstab: Spalte, Zauberstab: Reihe
-      if (fest(feld[z2][s2])) continue;
+      if (fest(feld[z2][s2]) || feld[z2][s2].schatz) continue;   // Schatzkisten räumt kein Stab ab
       if (!entfernen.has(key([z2, s2]))) {
         entfernen.set(key([z2, s2]), [z2, s2]);
         warteschlange.push([z2, s2]);
@@ -248,6 +261,24 @@ export function berechnePunkte(gruppen, aufloesung, kette) {
   return { gesamt, proGruppe, proReihe };
 }
 
+// Schatzkisten, die ganz unten angekommen sind (unter ihnen liegt kein freies Feld mehr)
+export function findeSchaetzeUnten(feld) {
+  const zellen = [];
+  feld.forEach((reihe, z) => reihe.forEach((stein, s) => {
+    if (!stein?.schatz) return;
+    for (let z2 = z + 1; z2 < feld.length; z2++) if (!fest(feld[z2][s])) return;
+    zellen.push([z, s]);
+  }));
+  return zellen;
+}
+
+// Sammelt die angekommenen Schatzkisten ein: sie verschwinden, die Spalte füllt sich wieder auf.
+export function sammleSchaetze(feld, arten, zufall = Math.random) {
+  const zellen = findeSchaetzeUnten(feld);
+  if (zellen.length) entferneUndFuelle(feld, zellen, arten, zufall);
+  return zellen;
+}
+
 // Wendet einen berechneten Schritt auf das Feld an und liefert eine Statistik für die Aufgaben:
 // gesammelt[art] = aufgelöste Steine je Art (ein Stein, der zum Zauberstab wird, zählt mit),
 // befreit = gefangene Steine, deren letzte Schutzschicht gerade geknackt wurde,
@@ -264,7 +295,7 @@ export function wendeAufloesungAn(feld, aufloesung, arten, zufall = Math.random)
       statistik.befreit++;
     }
   }
-  for (const [z, s] of aufloesung.entfernen) if (!feld[z][s].kokos) statistik.gesammelt[feld[z][s].art]++;
+  for (const [z, s] of aufloesung.entfernen) if (!feld[z][s].kokos && !feld[z][s].schatz) statistik.gesammelt[feld[z][s].art]++;
   for (const { zelle: [z, s], art } of aufloesung.neueStaebe) {
     feld[z][s].art = art;
     feld[z][s].spezial = "stab";
@@ -277,10 +308,15 @@ export function wendeAufloesungAn(feld, aufloesung, arten, zufall = Math.random)
 
 // Spielt alle Auflöse-Schritte eines Zugs ohne Grafik durch (für Tests und Simulation).
 export function spieleAufloesungDurch(feld, bevorzugt, arten, zufall = Math.random) {
-  const summe = { gesammelt: new Array(arten).fill(0), befreit: 0, staebe: 0, geknackt: 0, punkte: 0 };
+  const summe = { gesammelt: new Array(arten).fill(0), befreit: 0, staebe: 0, geknackt: 0, punkte: 0, schaetze: 0 };
   for (let kette = 1; ; kette++) {
     const gruppen = findeAlleTreffer(feld);
-    if (!gruppen.length) break;
+    if (!gruppen.length) {
+      const gesammelt = sammleSchaetze(feld, arten, zufall).length;      // Kiste per Tausch ganz nach unten gezogen
+      summe.schaetze += gesammelt;
+      if (gesammelt) { kette--; continue; }
+      break;
+    }
     const aufloesung = berechneAufloesung(feld, gruppen, kette === 1 ? bevorzugt : []);
     summe.punkte += berechnePunkte(gruppen, aufloesung, kette).gesamt;
     const st = wendeAufloesungAn(feld, aufloesung, arten, zufall);
@@ -288,6 +324,7 @@ export function spieleAufloesungDurch(feld, bevorzugt, arten, zufall = Math.rand
     summe.befreit += st.befreit;
     summe.staebe += st.staebe;
     summe.geknackt += st.geknackt;
+    summe.schaetze += sammleSchaetze(feld, arten, zufall).length;
   }
   return summe;
 }
@@ -345,6 +382,7 @@ export function findeAlleTreffer(feld) {
 // Gesperrte Steine lassen sich nicht tauschen.
 export function findeMoeglichenZug(feld) {
   const n = feld.length;
+  let kistenZug = null;
   for (let z = 0; z < n; z++) {
     for (let s = 0; s < n; s++) {
       for (const [dz, ds] of [[0, 1], [1, 0]]) {
@@ -354,11 +392,20 @@ export function findeMoeglichenZug(feld) {
         tausche(feld, [z, s], [z2, s2]);
         const treffer = findeAlleTreffer(feld).length > 0;
         tausche(feld, [z, s], [z2, s2]);
-        if (treffer) return [[z, s], [z2, s2]];
+        if (treffer && !istSchatzTausch(feld, [z, s], [z2, s2])) return [[z, s], [z2, s2]];
+        if (treffer) kistenZug ??= [[z, s], [z2, s2]];       // Kiste mit Treffer: nur Notlösung
       }
     }
   }
-  return null;
+  return kistenZug || kistenNachUnten(feld);
+
+  // Ohne Treffer-Zug bleibt das Ziehen einer Kiste nach unten (immer erlaubt)
+  function kistenNachUnten(f) {
+    for (let z = 0; z < n - 1; z++) for (let s = 0; s < n; s++) {
+      if (f[z][s].schatz && bewegbar(f[z + 1][s]) && !f[z + 1][s].schatz) return [[z, s], [z + 1, s]];
+    }
+    return null;
+  }
 }
 
 // Entfernt Steine, lässt die übrigen nach unten fallen und füllt oben auf.
@@ -412,7 +459,7 @@ export function entferneUndFuelle(feld, zellen, arten, zufall = Math.random) {
 export function mische(feld, zufall = Math.random) {
   const n = feld.length;
   const frei = [];                      // Zellen, die mitgemischt werden (zeilenweise)
-  for (let z = 0; z < n; z++) for (let s = 0; s < n; s++) if (bewegbar(feld[z][s])) frei.push([z, s]);
+  for (let z = 0; z < n; z++) for (let s = 0; s < n; s++) if (mischbar(feld[z][s])) frei.push([z, s]);
   const alle = frei.map(([z, s]) => feld[z][s]);
   const passt = (neu, z, s, stein) => {
     if (laufLinks(neu, z, s, stein.art) + 1 >= minLaenge) return false;
@@ -430,7 +477,7 @@ export function mische(feld, zufall = Math.random) {
       [vorrat[i], vorrat[j]] = [vorrat[j], vorrat[i]];
     }
     // neu: Kopie des Feldes mit den festen (gesperrten) Steinen schon an ihrem Platz
-    const neu = feld.map((zeile) => zeile.map((stein) => (bewegbar(stein) ? null : stein)));
+    const neu = feld.map((zeile) => zeile.map((stein) => (mischbar(stein) ? null : stein)));
     let ok = true;
     for (const [z, s] of frei) {
       const i = vorrat.findIndex((stein) => passt(neu, z, s, stein));

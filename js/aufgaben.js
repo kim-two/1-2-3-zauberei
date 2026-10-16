@@ -5,11 +5,13 @@
 //   { typ: "befreien", anzahl }              – gefangene Steine befreien (Schutz ganz geknackt)
 //   { typ: "punkte",   anzahl }              – Punktzahl erreichen
 //   { typ: "staebe",   anzahl }              – Zauberstäbe erzeugen
+//   { typ: "schatz",   anzahl }              – Schatzkisten nach unten bringen (schatzkisten: gleiche Zahl)
 // ranken:  Anzahl Steine im Ranken-Gitter (2 Treffer zum Befreien)
 // huellen: Anzahl Steine in Steinhülle mit Ranken (3 Treffer zum Befreien)
 // kokosnuesse: Anzahl Kokosnüsse auf dem Feld (nehmen an nichts teil, lassen sich nicht tauschen;
 //   nur ein Zauberstab räumt sie ab). Nicht jede Aufgabe hat welche.
 // eissteine: Anzahl von Anfang an gefrorener Steine (Eiswelt): ein Treffer mit dem Stein selbst taut das Eis auf
+// schatzkisten: Anzahl Schatzkisten, die von oben ganz nach unten gebracht werden müssen (Ziel typ "schatz")
 // felsen:   Anzahl Felsbrocken (Eiswelt): unbeweglich und unzerstörbar, Steine fallen daran vorbei
 // sturm:    true = in dieser Aufgabe zieht von Zeit zu Zeit ein Schneesturm auf und friert 3–5 Steine ein
 // Ein Treffer ist ein Treffer mit dem Stein selbst oder direkt daneben.
@@ -39,6 +41,21 @@ export const AUFGABEN = [
 // ---------- Eiswelt ----------
 // Steine: 0 Pinguin, 1 Eisbär, 2 Robbe, 3 Eiskristall, 4 Weihnachtskeks, 5 Schneemann.
 // Statt des Zauberstabs gibt es den Feuerstab (löst die ganze Spalte auf).
+// Aufgaben mit Schatzkisten (Feenwelt: Kristalltruhe, Eiswelt: Muschel- und Perlentruhe)
+export const FEEN_SCHATZ_AUFGABEN = [
+  { titel: "Die Kristalltruhe",    zuege: 14, schatzkisten: 2, ziele: [{ typ: "schatz", anzahl: 2 }] },
+  { titel: "Schatz im Garten",     zuege: 16, schatzkisten: 2, ranken: 4, ziele: [{ typ: "schatz", anzahl: 2 }] },
+  { titel: "Kokos-Schatzjagd",     zuege: 20, schatzkisten: 3, kokosnuesse: 4, ziele: [{ typ: "schatz", anzahl: 3 }] },
+  { titel: "Der große Schatz",     zuege: 26, schatzkisten: 3, ranken: 3, kokosnuesse: 3, ziele: [{ typ: "schatz", anzahl: 3 }, { typ: "sammeln", art: 4, anzahl: 12 }] },
+];
+
+export const EIS_SCHATZ_AUFGABEN = [
+  { titel: "Perlentaucher",         zuege: 14, schatzkisten: 2, ziele: [{ typ: "schatz", anzahl: 2 }] },
+  { titel: "Muschelschatz im Eis",  zuege: 16, schatzkisten: 2, felsen: 4, ziele: [{ typ: "schatz", anzahl: 2 }] },
+  { titel: "Der gefrorene Schatz",  zuege: 18, schatzkisten: 2, eissteine: 4, sturm: true, ziele: [{ typ: "schatz", anzahl: 2 }] },
+  { titel: "Polarnacht-Schatz",     zuege: 26, schatzkisten: 3, felsen: 4, sturm: true, ziele: [{ typ: "schatz", anzahl: 3 }, { typ: "sammeln", art: 3, anzahl: 12 }] },
+];
+
 export const EIS_AUFGABEN = [
   { titel: "Pinguin-Parade",       zuege: 20, ziele: [{ typ: "sammeln", art: 0, anzahl: 16 }] },
   { titel: "Plätzchen-Zauber",     zuege: 15, ziele: [{ typ: "punkte", anzahl: 1500 }] },
@@ -51,6 +68,9 @@ export const EIS_AUFGABEN = [
   { titel: "Lawine!",              zuege: 22, felsen: 5, sturm: true, ziele: [{ typ: "staebe", anzahl: 3 }] },
   { titel: "Die große Polarnacht", zuege: 28, felsen: 4, eissteine: 4, sturm: true, ziele: [{ typ: "befreien", anzahl: 4 }, { typ: "sammeln", art: 4, anzahl: 14 }] },
 ];
+
+AUFGABEN.push(...FEEN_SCHATZ_AUFGABEN);
+EIS_AUFGABEN.push(...EIS_SCHATZ_AUFGABEN);
 
 // Aufgabe für eine Schwierigkeitsstufe: Ziele und gefangene Steine werden mit dem
 // zielFaktor der Stufe vergrößert (Stufen ohne zielFaktor behalten die Aufgabe unverändert).
@@ -83,6 +103,7 @@ export function zielText(ziel, welt = {}) {
     case "befreien": return (welt.befreienText || ((n) => `Befreie ${n} gefangene Steine`))(ziel.anzahl);
     case "punkte":   return `Erreiche ${ziel.anzahl.toLocaleString("de-DE")} Punkte`;
     case "staebe":   return (welt.stabText || ((n) => `Zaubere ${n} Zauberstäbe`))(ziel.anzahl);
+    case "schatz":   return `Bringe ${ziel.anzahl} ${ziel.anzahl === 1 ? "Schatzkiste" : "Schatzkisten"} nach unten`;
     default:         return "";
   }
 }
@@ -94,6 +115,7 @@ export function zielStand(ziel, stand) {
     case "befreien": return stand.befreit;
     case "punkte":   return stand.punkte;
     case "staebe":   return stand.staebe;
+    case "schatz":   return stand.schaetze;
     default:         return 0;
   }
 }
@@ -103,13 +125,14 @@ export function istGeschafft(aufgabe, stand) {
 }
 
 export function leererStand() {
-  return { gesammelt: new Array(STEINE.length).fill(0), befreit: 0, staebe: 0, punkte: 0 };
+  return { gesammelt: new Array(STEINE.length).fill(0), befreit: 0, staebe: 0, punkte: 0, schaetze: 0 };
 }
 
 export function addiereStand(stand, statistik, punkte = 0) {
   statistik.gesammelt.forEach((n, i) => (stand.gesammelt[i] += n));
   stand.befreit += statistik.befreit;
   stand.staebe += statistik.staebe;
+  stand.schaetze += statistik.schaetze || 0;
   stand.punkte += punkte;
 }
 
@@ -136,6 +159,13 @@ function baueAufgabenFeld(aufgabe, groesse, arten, zufall) {
     feld[z][s].gefangen = true;
     feld[z][s].schutz = i < huellen ? 3 : 2;
   });
+  // Schatzkisten: oben, in verschiedenen Spalten
+  const spalten = Array.from({ length: groesse }, (_, s) => s);
+  for (let i = spalten.length - 1; i > 0; i--) {
+    const j = Math.floor(zufall() * (i + 1));
+    [spalten[i], spalten[j]] = [spalten[j], spalten[i]];
+  }
+  spalten.slice(0, aufgabe.schatzkisten || 0).forEach((s) => { feld[0][s].schatz = true; });
   // Kokosnüsse auf anderen Feldern (nicht in der obersten Reihe)
   let nr = huellen + ranken;
   zellen.slice(nr, nr += (aufgabe.eissteine || 0)).forEach(([z, s]) => {

@@ -54,6 +54,16 @@ eine Aufgabe wird freigeschaltet, wenn die vorherige geschafft ist (Fortschritt 
 | 14 | Kokos im Garten | 6 Steine aus Ranken befreien (4 Kokosnüsse) | 19 |
 | 15 | Die große Kokosernte | 7 Steine befreien + 12 Sterne (6 Kokosnüsse) | 26 |
 
+| 16 | Die Kristalltruhe | 2 Schatzkisten nach unten bringen | | 14 |
+| 17 | Schatz im Garten | 2 Schatzkisten | 4 Ranken | 16 |
+| 18 | Kokos-Schatzjagd | 3 Schatzkisten | 4 Kokosnüsse | 20 |
+| 19 | Der große Schatz | 3 Schatzkisten + 12 Blumen | 3 Ranken, 3 Kokosnüsse | 26 |
+
+**Schatzkisten** (ab v0.9.0): Die Kisten liegen oben und müssen ganz nach unten gebracht werden (Ziel „Bringe N Schatzkisten nach unten“, `schatzkisten` in `js/aufgaben.js`).
+Sie nehmen an keiner Reihe teil, fallen aber, wenn darunter Steine verschwinden. Man kann sie auch mit einem Nachbarn tauschen – das geht ohne Treffer, kostet aber einen Zug.
+Unten angekommen (kein freies Feld mehr darunter) wird die Kiste eingesammelt. Zauber- und Feuerstab räumen Kisten nie ab; beim Mischen bleiben sie liegen.
+Nach geschaffter Aufgabe zeigt der Erfolgs-Dialog die Kiste: antippen, dann öffnet sie sich – in der Feenwelt voller funkelnder Kristalle, in der Eiswelt voller Muscheln und Perlen.
+
 **Kokosnuss** (ab v0.7.0): Hindernis in den Aufgaben 11–15 (`kokosnuesse` in `js/aufgaben.js`; die Aufgaben 1–10 haben keine).
 Sie nimmt an keiner Reihe teil, lässt sich nicht tauschen (wackelt nur), fällt aber nach unten, wenn darunter Steine verschwinden.
 Nur ein Zauberstab räumt sie ab, wenn ihre Reihe aufgelöst wird. Die junge Fee hat nur halb so viele Kokosnüsse.
@@ -99,6 +109,15 @@ In der Aufgabenwahl gibt es für jede Welt einen Reiter. Alle Aufgaben stehen vo
 | 8 | Eisbrecher | 5 auftauen + 12 Pinguine | Sturm, 5 gefroren | 25 |
 | 9 | Lawine! | 3 Feuerstäbe | Sturm, 5 Felsbrocken | 22 |
 | 10 | Die große Polarnacht | 4 auftauen + 14 Weihnachtskekse | Sturm, 4 Felsen, 4 gefroren | 28 |
+
+Schatz-Aufgaben der Eiswelt (Muschel- und Perlentruhe):
+
+| Nr. | Aufgabe | Ziel | Besonderheit | Züge |
+|----:|---------|------|--------------|-----:|
+| 11 | Perlentaucher | 2 Schatzkisten | | 14 |
+| 12 | Muschelschatz im Eis | 2 Schatzkisten | 4 Felsbrocken | 16 |
+| 13 | Der gefrorene Schatz | 2 Schatzkisten | Sturm, 4 gefroren | 18 |
+| 14 | Polarnacht-Schatz | 3 Schatzkisten + 12 Eiskristalle | Sturm, 4 Felsbrocken | 26 |
 
 Neue Welten und Aufgaben: `js/welten.js` (Steine, Texte) und `js/aufgaben.js` (Aufgaben).
 

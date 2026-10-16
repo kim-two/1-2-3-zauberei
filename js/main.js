@@ -1,9 +1,9 @@
 // Einstiegspunkt des Spiels: Darstellung, Touch-Steuerung und Effekte.
 // Die Versionsnummer muss mit CACHE_VERSION in sw.js übereinstimmen.
-const VERSION = "0.8.0";
+const VERSION = "0.9.0";
 
 import {
-  erzeugeFeld, setzeMinLaenge, setzeStabRichtung, friereSteine, bewegbar, findeMoeglichenZug, sindNachbarn, tausche, mische,
+  erzeugeFeld, setzeMinLaenge, setzeStabRichtung, friereSteine, bewegbar, istSchatzTausch, findeSchaetzeUnten, sammleSchaetze, findeMoeglichenZug, sindNachbarn, tausche, mische,
   berechneAufloesung, findeAlleTreffer, berechnePunkte, wendeAufloesungAn,
 } from "./board.js";
 import { SVG_DEFS } from "./steine.js";
@@ -12,7 +12,7 @@ import { SCHWIERIGKEITEN, REIHENFOLGE, STANDARD, schluessel } from "./schwierigk
 import {
   aufgabeFuerStufe, zielText, zielStand, istGeschafft, leererStand, addiereStand, erzeugeAufgabenFeld,
 } from "./aufgaben.js";
-import { EINHORN_SVG, FEE_SVG, DRACHE_SVG, STUFEN_BILD } from "./figuren.js";
+import { EINHORN_SVG, FEE_SVG, DRACHE_SVG, STUFEN_BILD, KISTE_ZU, KISTE_OFFEN } from "./figuren.js";
 import { erzeugeRechenaufgabe, leseAntwort, zuegeBisDrache } from "./herausforderungen.js";
 
 // ---------- Einstellungen ----------
@@ -112,8 +112,9 @@ function setzePosition(el, z, s) {
 
 function erzeugeElement(stein) {
   const el = document.createElement("div");
-  el.className = "stein" + (stein.kokos ? " kokos" : "") + (stein.fels ? " fels" : "");
-  const hindernis = stein.kokos ? ["kokosnuss", "Kokosnuss"] : stein.fels ? ["felsbrocken", "Felsbrocken"] : null;
+  el.className = "stein" + (stein.kokos ? " kokos" : "") + (stein.fels ? " fels" : "") + (stein.schatz ? " schatz" : "");
+  const hindernis = stein.kokos ? ["kokosnuss", "Kokosnuss"] : stein.fels ? ["felsbrocken", "Felsbrocken"]
+    : stein.schatz ? [`schatz-${welt === "eis" ? "eis" : "feen"}`, "Schatzkiste"] : null;
   el.innerHTML = hindernis
     ? `<div class="bild"><svg viewBox="0 0 100 100" role="img" aria-label="${hindernis[1]}"><use href="#${hindernis[0]}"/></svg></div>`
     : `<div class="bild"><svg viewBox="0 0 100 100" role="img" aria-label="${STEINE_AKT[stein.art].name}">` +
@@ -167,11 +168,12 @@ function aktualisiereLeuchten() {
     ? aufgabe.ziele.filter((z) => zielStand(z, stand) < z.anzahl) : [];
   const arten = new Set(offen.filter((z) => z.typ === "sammeln").map((z) => z.art));
   const gefangene = offen.some((z) => z.typ === "befreien");
+  const schatzOffen = offen.some((z) => z.typ === "schatz");
   for (const zeile of feld) {
     for (const stein of zeile) {
       const el = elemente.get(stein.id);
       if (!el) continue;
-      el.classList.toggle("ziel-leuchten", (!stein.kokos && !stein.fels && arten.has(stein.art)) || (gefangene && stein.gefangen && stein.schutz > 0));
+      el.classList.toggle("ziel-leuchten", (stein.schatz && schatzOffen) || (!stein.kokos && !stein.fels && !stein.schatz && arten.has(stein.art)) || (gefangene && stein.gefangen && stein.schutz > 0));
     }
   }
 }
@@ -278,12 +280,15 @@ function zeigeLob(text) {
 async function loeseTrefferAuf(bevorzugt = []) {
   for (let kette = 1; ; kette++) {
     const gruppen = findeAlleTreffer(feld);
-    if (!gruppen.length) break;
+    if (!gruppen.length) {
+      if (await sammleSchaetzeAb()) { kette--; continue; }   // Kiste per Tausch ganz nach unten gezogen
+      break;
+    }
 
     const aufloesung = berechneAufloesung(feld, gruppen, kette === 1 ? bevorzugt : []);
     const { entfernen, geschwaecht, neueStaebe, ausgeloest } = aufloesung;
     const wertung = berechnePunkte(gruppen, aufloesung, kette);
-    const farbeBei = ([z, s]) => (feld[z][s].kokos ? "#a86a3a" : STEINE_AKT[feld[z][s].art].farbe);
+    const farbeBei = ([z, s]) => (feld[z][s].kokos ? "#a86a3a" : STEINE_AKT[feld[z][s].art].farbe);   // (Kisten nie betroffen)
 
     // Punkte-Popups für Gruppen und Stab-Reihen
     const laengste = Math.max(...gruppen.map((g) => g.zellen.length));
@@ -357,10 +362,38 @@ async function loeseTrefferAuf(bevorzugt = []) {
       zeigeAufgabenStand(true);
     }
     await lasseFallen();
+    await sammleSchaetzeAb();
     aktualisiereLeuchten();
   }
 
   if (!findeMoeglichenZug(feld)) await mischeNeu();
+}
+
+// Schatzkisten, die ganz unten angekommen sind, werden eingesammelt.
+async function sammleSchaetzeAb() {
+  const unten = findeSchaetzeUnten(feld);
+  if (!unten.length) return false;
+  const ids = unten.map(([z, s]) => feld[z][s].id);
+  for (const zelle of unten) {
+    const { links, oben } = mitte([zelle]);
+    effekt("ring", links, oben, { "--farbe": "#ffd23f", "--gross": "3.5" });
+    funkenregen(zelle, "#ffd23f", 12);
+    funkenregen(zelle, welt === "eis" ? "#bfe8ff" : "#ff6fae", 8);
+    elementBei(zelle).classList.add("verschwindet");
+  }
+  zeigeLob(unten.length > 1 ? "Schätze gerettet!" : "Schatz gerettet!");
+  await warte(550);
+  sammleSchaetze(feld, ARTEN);
+  for (const id of ids) {
+    elemente.get(id)?.remove();
+    elemente.delete(id);
+  }
+  if (modus === "aufgabe") {
+    stand.schaetze += unten.length;
+    zeigeAufgabenStand(true);
+  }
+  await lasseFallen();
+  return true;
 }
 
 async function mischeNeu() {
@@ -382,7 +415,7 @@ async function mischeNeu() {
   } else if (!gesperrteZeilen().length) {
     // Neues Feld; Kokosnüsse bleiben an ihren Plätzen
     const hindernisse = [];
-    feld.forEach((reihe, z) => reihe.forEach((st, s) => (st.kokos || st.fels) && hindernisse.push([z, s, st])));
+    feld.forEach((reihe, z) => reihe.forEach((st, s) => (st.kokos || st.fels || st.schatz) && hindernisse.push([z, s, st])));
     feld = erzeugeFeld(GROESSE, ARTEN);
     for (const [z, s, stein] of hindernisse) feld[z][s] = stein;
     baueFeldNeu();
@@ -431,7 +464,7 @@ async function versucheTausch(a, b) {
   setzePosition(elB, a[0], a[1]);
   await warte(220);
 
-  if (findeAlleTreffer(feld).length === 0) {
+  if (findeAlleTreffer(feld).length === 0 && !istSchatzTausch(feld, a, b)) {
     // Kein Treffer: zurücktauschen und kurz wackeln
     tausche(feld, a, b);
     setzePosition(elA, a[0], a[1]);
@@ -612,6 +645,8 @@ function zielIcon(ziel, w = welt) {
         : `<svg viewBox="0 0 100 100"><use href="#stein-0" opacity=".55"/><use href="#ranken-2"/></svg>`;
     case "staebe":
       return `<svg viewBox="0 0 100 100"><use href="#${WELTEN[w].stab.symbol}"/></svg>`;
+    case "schatz":
+      return `<svg viewBox="0 0 100 100"><use href="#schatz-${w === "eis" ? "eis" : "feen"}"/></svg>`;
     case "punkte":
       return `<svg viewBox="0 0 100 100"><use href="#${symbolId(1, w)}"/></svg>`;
     default:
@@ -814,11 +849,13 @@ function zeigeAufgabeVor() {
     aufgabe.felsen && "<p>⛰ Felsbrocken bleiben immer, wo sie sind – die Steine fallen daran vorbei.</p>",
     welt === "eis" && aufgabe.ziele.some((z) => z.typ === "staebe") && "<p>Löse 4 oder mehr gleiche Steine auf – dann entsteht ein <b>Feuerstab</b>, der eine ganze Spalte auflöst!</p>",
   ].filter(Boolean).join("");
+  const schatz = aufgabe.schatzkisten
+    ? `<p><svg class="mini-kokos" viewBox="0 0 100 100"><use href="#schatz-${welt === "eis" ? "eis" : "feen"}"/></svg> Bringe die Schatzkiste ganz nach unten: Tausche sie mit einem Nachbarn (das kostet einen Zug) oder löse Steine unter ihr auf, dann fällt sie!</p>` : "";
   const kokos = aufgabe.kokosnuesse
     ? '<p><svg class="mini-kokos" viewBox="0 0 100 100"><use href="#kokosnuss"/></svg> Kokosnüsse lassen sich nicht bewegen. Ein Zauberstab räumt sie ab!</p>' : "";
   zeigeDialog({
     titel: `Aufgabe ${aufgabeNr + 1}: ${aufgabe.titel}`,
-    text: `${zielListeHtml(false)}${hinweis}${eisHinweise}${kokos}<p>Du hast <b>${aufgabe.zuege} Züge</b>.</p>`,
+    text: `${zielListeHtml(false)}${hinweis}${eisHinweise}${schatz}${kokos}<p>Du hast <b>${aufgabe.zuege} Züge</b>.</p>`,
     knoepfe: [
       { text: "← Zurück", klasse: "knopf-zart", aktion: zeigeAufgabenwahl },
       { text: "Los geht's!", aktion: () => { schliesseBildschirme(); spielAktiv = true; aktualisiereDracheLeiste(); starteTipp(); } },
@@ -832,14 +869,28 @@ function zeigeErfolg() {
   if (naechste !== null) knoepfe.push({ text: "Nächste Aufgabe →", aktion: () => starteAufgabe(naechste) });
   else knoepfe.push({ text: "Nochmal", aktion: () => starteAufgabe(aufgabeNr) });
   const rest = zuegeUebrig > 0 ? ` Und du hattest sogar noch <b>${zuegeUebrig} ${zuegeUebrig === 1 ? "Zug" : "Züge"}</b> übrig!` : "";
+  const eis = welt === "eis";
+  const mitSchatz = Boolean(aufgabe.schatzkisten);
   zeigeDialog({
-    figur: EINHORN_SVG,
-    titel: naechste === null ? "Du bist eine Zaubermeisterin!" : "Wunderbar gemacht!",
-    text: naechste === null
-      ? `Du hast alle Aufgaben geschafft. Das Einhorn ist mächtig stolz auf dich!${rest}`
-      : `Das Einhorn gratuliert dir: Du hast „${aufgabe.titel}“ geschafft!${rest}`,
+    figur: mitSchatz ? `<button type="button" class="kiste-knopf" aria-label="Schatzkiste öffnen">${KISTE_ZU(eis)}</button>` : EINHORN_SVG,
+    titel: mitSchatz ? "Du hast den Schatz gerettet!" : naechste === null ? "Du bist eine Zaubermeisterin!" : "Wunderbar gemacht!",
+    text: mitSchatz
+      ? `„${aufgabe.titel}“ ist geschafft!${rest}<p class="kiste-hinweis"><b>Tippe auf die Kiste</b> und schau, was drin ist!</p>`
+      : naechste === null
+        ? `Du hast alle Aufgaben geschafft. Das Einhorn ist mächtig stolz auf dich!${rest}`
+        : `Das Einhorn gratuliert dir: Du hast „${aufgabe.titel}“ geschafft!${rest}`,
     knoepfe,
   });
+  if (mitSchatz) {
+    const kiste = document.querySelector("#dialog-figur .kiste-knopf");
+    kiste?.addEventListener("click", () => {
+      kiste.innerHTML = KISTE_OFFEN(eis);
+      kiste.disabled = true;
+      kiste.classList.add("geoeffnet");
+      document.querySelector("#dialog-text .kiste-hinweis").innerHTML =
+        eis ? "Die Kiste ist voller <b>Muscheln und Perlen</b>! ✨" : "Die Kiste ist voller <b>funkelnder Kristalle</b>! ✨";
+    }, { once: true });
+  }
   // Funkenregen über dem Spielfeld zur Feier
   for (const farbe of ["#ff6fae", "#ffc93c", "#a970ff", "#3fa9f5"]) funkenregen([3.5, 3.5], farbe, 6);
 }

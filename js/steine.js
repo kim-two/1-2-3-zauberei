@@ -279,6 +279,34 @@ export const SVG_DEFS = `
       </g>
     </symbol>
 
+    <!-- Schatzkiste (geschlossen): Feenwelt mit funkelndem Kristall am Schloss, Eiswelt mit Muschel -->
+    <linearGradient id="v-holz" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#c98b4a"/><stop offset="1" stop-color="#8a5424"/>
+    </linearGradient>
+    <linearGradient id="v-eisholz" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#dff3ff"/><stop offset="1" stop-color="#8fc4e8"/>
+    </linearGradient>
+    <symbol id="schatz-feen" viewBox="0 0 100 100">
+      <path d="M10 46 Q10 14 50 14 Q90 14 90 46 Z" fill="url(#v-holz)" stroke="#5e3410" stroke-width="4" stroke-linejoin="round"/>
+      <rect x="10" y="44" width="80" height="44" rx="6" fill="url(#v-holz)" stroke="#5e3410" stroke-width="4"/>
+      <g fill="#ffd23f" stroke="#b07a00" stroke-width="3">
+        <rect x="10" y="42" width="80" height="9"/><rect x="22" y="16" width="9" height="30"/><rect x="69" y="16" width="9" height="30"/>
+      </g>
+      <polygon points="50,46 60,56 50,72 40,56" fill="#ff6fae" stroke="#b81e6a" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M45 54 L50 50" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+      <path d="M80 8 l3 7 7 3 -7 3 -3 7 -3 -7 -7 -3 7 -3z" fill="#fff" stroke="#ffd23f" stroke-width="1.5"/>
+    </symbol>
+    <symbol id="schatz-eis" viewBox="0 0 100 100">
+      <path d="M10 46 Q10 14 50 14 Q90 14 90 46 Z" fill="url(#v-eisholz)" stroke="#3f7fae" stroke-width="4" stroke-linejoin="round"/>
+      <rect x="10" y="44" width="80" height="44" rx="6" fill="url(#v-eisholz)" stroke="#3f7fae" stroke-width="4"/>
+      <g fill="#c9d6e6" stroke="#6c86a6" stroke-width="3">
+        <rect x="10" y="42" width="80" height="9"/><rect x="22" y="16" width="9" height="30"/><rect x="69" y="16" width="9" height="30"/>
+      </g>
+      <path d="M50 74 Q36 70 36 58 Q36 48 50 46 Q64 48 64 58 Q64 70 50 74 Z" fill="#ffd6e6" stroke="#c46a96" stroke-width="3"/>
+      <path d="M50 74 V50 M44 72 L41 54 M56 72 L59 54" stroke="#c46a96" stroke-width="2" fill="none"/>
+      <circle cx="80" cy="14" r="5" fill="#fff" stroke="#bcd" stroke-width="2"/>
+    </symbol>
+
     <!-- Kokosnuss: Hindernis, nimmt an nichts teil -->
     <radialGradient id="v-kokos" cx="38%" cy="32%" r="75%">
       <stop offset="0" stop-color="#b98254"/>

@@ -1017,3 +1017,13 @@ body[data-welt="eis"] #landschaft { filter: sepia(0.9) hue-rotate(158deg) satura
 @keyframes beben { 25% { margin-left: -2px; } 75% { margin-left: 2px; } }
 .stein.friert .schutz { animation: einfrieren 0.6s ease-out; }
 @keyframes einfrieren { 0% { transform: scale(1.6); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+/* ---------- Schatzkiste ---------- */
+.stein.schatz .bild { filter: drop-shadow(0 0 6px rgba(255, 210, 63, 0.9)); }
+.kiste-knopf { border: 0; background: none; padding: 0; width: 100%; height: 100%; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.kiste-knopf:not(.geoeffnet) { animation: kiste-wackeln 1.4s ease-in-out infinite; }
+.kiste-knopf.geoeffnet .kiste { animation: kiste-auf 0.6s ease-out; }
+.kiste-knopf svg { width: 100%; height: 100%; }
+.kiste-hinweis { margin: 8px 0 0; }
+@keyframes kiste-wackeln { 0%, 60%, 100% { transform: rotate(0); } 70% { transform: rotate(-4deg); } 80% { transform: rotate(4deg); } 90% { transform: rotate(-3deg); } }
+@keyframes kiste-auf { 0% { transform: scale(0.85); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
