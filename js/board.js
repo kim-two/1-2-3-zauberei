@@ -282,8 +282,10 @@ export function wendeAufloesungAn(feld, aufloesung, arten, zufall = Math.random)
     const stein = feld[z][s];
     stein.schutz--;
     statistik.geknackt++;
+    // Auch vom Schneesturm eingefrorene Steine (nur eis, nicht gefangen) zählen als befreit
+    const warGefangen = Boolean(stein.gefangen || stein.eis);
     if (stein.schutz === 0) stein.eis = false;      // Eis ist geschmolzen
-    if (stein.schutz === 0 && stein.gefangen) {
+    if (stein.schutz === 0 && warGefangen) {
       stein.gefangen = false;
       statistik.befreit++;
     }

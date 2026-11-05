@@ -1,6 +1,6 @@
 // Einstiegspunkt des Spiels: Darstellung, Touch-Steuerung und Effekte.
 // Die Versionsnummer muss mit CACHE_VERSION in sw.js übereinstimmen.
-const VERSION = "0.10.1";
+const VERSION = "0.10.2";
 
 import {
   erzeugeFeld, setzeMinLaenge, setzeStabRichtung, friereSteine, bewegbar, findeSchaetzeUnten, sammleSchaetze, findeMoeglichenZug, sindNachbarn, tausche, mische,
@@ -175,7 +175,7 @@ function aktualisiereLeuchten() {
     for (const stein of zeile) {
       const el = elemente.get(stein.id);
       if (!el) continue;
-      el.classList.toggle("ziel-leuchten", (stein.schatz && schatzOffen) || (!stein.kokos && !stein.fels && !stein.schatz && arten.has(stein.art)) || (gefangene && stein.gefangen && stein.schutz > 0));
+      el.classList.toggle("ziel-leuchten", (stein.schatz && schatzOffen) || (!stein.kokos && !stein.fels && !stein.schatz && arten.has(stein.art)) || (gefangene && (stein.gefangen || stein.eis) && stein.schutz > 0));
     }
   }
 }

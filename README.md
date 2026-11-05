@@ -97,7 +97,7 @@ In der Aufgabenwahl gibt es für jede Welt einen Reiter. Alle Aufgaben stehen vo
 - **Feuerstab** statt Zauberstab: entsteht wie der Zauberstab (4 oder mehr gleiche), löst aber die ganze **Spalte** auf
 - **Felsbrocken:** unbeweglich und unzerstörbar (auch der Feuerstab räumt sie nicht ab). Steine fallen an ihnen vorbei
 - **Gefrorene Steine:** Ein Treffer mit dem Stein selbst taut das Eis auf (der Stein bleibt liegen), danach ist er normal. Treffer daneben zählen nicht
-- **Schneesturm:** In Aufgaben mit `sturm: true` zieht nach 3–5 Zügen (danach alle 4–7) ein Sturm auf und friert 3–5 Steine ein; im letzten Zug nicht mehr
+- **Schneesturm:** In Aufgaben mit `sturm: true` zieht nach 3–5 Zügen (danach alle 4–7) ein Sturm auf und friert 3–5 Steine ein; im letzten Zug nicht mehr Auch diese Steine zählen beim Ziel „auftauen“ (Fehlerbehebung v0.10.2)
 
 | Nr. | Aufgabe | Ziel | Besonderheit | Züge |
 |----:|---------|------|--------------|-----:|
